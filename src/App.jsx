@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'framer-motion'
-import { MapContainer, Marker, TileLayer, Tooltip, ZoomControl, useMap } from 'react-leaflet'
+import { LayerGroup, LayersControl, MapContainer, Marker, TileLayer, Tooltip, ZoomControl, useMap } from 'react-leaflet'
 import { IconBrandLinkedin, IconBrandInstagram, IconBrandFacebook, IconBrandYoutube, IconBrandGoogle, IconBrandApple, IconBrandGithub, IconEye, IconEyeOff, IconLayoutDashboard, IconBook2, IconReport, IconChevronRight, IconLogout, IconMenu2, IconX, IconCamera, IconDeviceFloppy } from '@tabler/icons-react'
 import L from 'leaflet'
 import LiquidEther from './LiquidEther'
@@ -1108,17 +1108,17 @@ const Hero = ({ onNavigate = () => {} }) => {
         <div className="hero-liquid-wrap">
           <LiquidEther
             colors={['#29ff69', '#9effb6', '#d19f66']}
-            mouseForce={20}
-            cursorSize={140}
+            mouseForce={14}
+            cursorSize={110}
             isViscous
-            viscous={30}
-            iterationsViscous={32}
-            iterationsPoisson={32}
-            resolution={0.5}
+            viscous={24}
+            iterationsViscous={18}
+            iterationsPoisson={18}
+            resolution={0.36}
             isBounce={false}
             autoDemo
-            autoSpeed={0.5}
-            autoIntensity={2.2}
+            autoSpeed={0.38}
+            autoIntensity={1.5}
             takeoverDuration={0.25}
             autoResumeDelay={3000}
             autoRampDuration={0.6}
@@ -2636,10 +2636,38 @@ const OfficesPage = () => {
                   zoomControl={false}
                   className="offices-map-leaflet"
                 >
-                  <TileLayer
-                    attribution="Tiles &copy; Esri"
-                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                  />
+                  <LayersControl position="topright">
+                    <LayersControl.BaseLayer checked name="🗺️ Map View">
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="🛰️ Satellite View">
+                      <TileLayer
+                        attribution="Tiles &copy; Esri"
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                      />
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="🌐 Hybrid View">
+                      <LayerGroup>
+                        <TileLayer
+                          attribution="Tiles &copy; Esri"
+                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        />
+                        <TileLayer
+                          attribution="Labels &copy; Esri"
+                          url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                        />
+                      </LayerGroup>
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="⚪ Light Gray View">
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; CARTO'
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                      />
+                    </LayersControl.BaseLayer>
+                  </LayersControl>
                   <ZoomControl position="topright" />
                   <OfficesMapViewport center={selectedRegion.center} zoom={selectedRegion.zoom} />
                   {visiblePins.map((pin) => (
@@ -2699,7 +2727,7 @@ const PhilImpactPage = () => {
         map.invalidateSize({ pan: false })
       }
 
-      map.setView(center, zoom, { animate: false })
+      map.flyTo(center, zoom, { duration: 0.9, easeLinearity: 0.22 })
       refreshMapSize()
 
       const frame = requestAnimationFrame(refreshMapSize)
@@ -2725,19 +2753,32 @@ const PhilImpactPage = () => {
   })
 
   const philImpactPins = [
-    { city: 'Cairo', lat: 30.0444, lng: 31.2357 },
-    { city: 'Addis Ababa', lat: 8.9806, lng: 38.7578 },
-    { city: 'Lagos', lat: 6.5244, lng: 3.3792 },
-    { city: 'Accra', lat: 5.6037, lng: -0.187 },
-    { city: 'Abidjan', lat: 5.3599, lng: -4.0083 },
-    { city: 'Douala', lat: 4.0511, lng: 9.7679 },
-    { city: 'Nairobi', lat: -1.2921, lng: 36.8219 },
-    { city: 'Kampala', lat: 0.3476, lng: 32.5825 },
-    { city: 'Dar es Salaam', lat: -6.7924, lng: 39.2083 },
-    { city: 'Kinshasa', lat: -4.4419, lng: 15.2663 },
-    { city: 'Lusaka', lat: -15.3875, lng: 28.3228 },
-    { city: 'Johannesburg', lat: -26.2041, lng: 28.0473 },
+    { city: 'Cairo', region: 'north-africa', lat: 30.0444, lng: 31.2357 },
+    { city: 'Addis Ababa', region: 'east-africa', lat: 8.9806, lng: 38.7578 },
+    { city: 'Lagos', region: 'west-africa', lat: 6.5244, lng: 3.3792 },
+    { city: 'Accra', region: 'west-africa', lat: 5.6037, lng: -0.187 },
+    { city: 'Abidjan', region: 'west-africa', lat: 5.3599, lng: -4.0083 },
+    { city: 'Douala', region: 'central-africa', lat: 4.0511, lng: 9.7679 },
+    { city: 'Nairobi', region: 'east-africa', lat: -1.2921, lng: 36.8219 },
+    { city: 'Kampala', region: 'east-africa', lat: 0.3476, lng: 32.5825 },
+    { city: 'Dar es Salaam', region: 'east-africa', lat: -6.7924, lng: 39.2083 },
+    { city: 'Kinshasa', region: 'central-africa', lat: -4.4419, lng: 15.2663 },
+    { city: 'Lusaka', region: 'southern-africa', lat: -15.3875, lng: 28.3228 },
+    { city: 'Johannesburg', region: 'southern-africa', lat: -26.2041, lng: 28.0473 },
   ]
+  const philRegions = [
+    { id: 'all', label: 'All Regions', mapFocus: 'Africa', center: [4, 18], zoom: 3 },
+    { id: 'north-africa', label: 'North Africa', mapFocus: 'North Africa', center: [27, 25], zoom: 4 },
+    { id: 'west-africa', label: 'West Africa', mapFocus: 'West Africa', center: [8, -2], zoom: 4 },
+    { id: 'east-africa', label: 'East Africa', mapFocus: 'East Africa', center: [0, 37], zoom: 4 },
+    { id: 'central-africa', label: 'Central Africa', mapFocus: 'Central Africa', center: [0, 17], zoom: 4 },
+    { id: 'southern-africa', label: 'Southern Africa', mapFocus: 'Southern Africa', center: [-22, 28], zoom: 4 },
+  ]
+  const [activePhilRegion, setActivePhilRegion] = useState('all')
+  const selectedPhilRegion = philRegions.find((region) => region.id === activePhilRegion) || philRegions[0]
+  const visiblePhilPins = activePhilRegion === 'all'
+    ? philImpactPins
+    : philImpactPins.filter((pin) => pin.region === activePhilRegion)
   const philImpactMarqueeItems = philImpactPins.map((pin) => pin.city)
 
   const impactCards = [
@@ -2793,24 +2834,85 @@ const PhilImpactPage = () => {
           <div className="phil-map-head">
             <h2>Transforming Communities Worldwide</h2>
           </div>
-          <div className="phil-map-stage" role="img" aria-label="Community impact locations map">
-            <MapContainer
-              center={[4, 18]}
-              zoom={3}
-              zoomControl={false}
-              className="phil-map-leaflet"
-            >
-              <TileLayer
-                attribution="Tiles &copy; Esri"
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              />
-              <PhilImpactMapViewport center={[4, 18]} zoom={3} />
-              {philImpactPins.map((pin) => (
-                <Marker key={pin.city} position={[pin.lat, pin.lng]} icon={philImpactMarkerIcon}>
-                  <Tooltip direction="top" offset={[0, -10]}>{pin.city}</Tooltip>
-                </Marker>
-              ))}
-            </MapContainer>
+          <div className="phil-map-layout">
+            <aside className="phil-region-panel">
+              <h3>Regions</h3>
+              <div className="phil-region-list">
+                {philRegions.map((region) => {
+                  const count = region.id === 'all'
+                    ? philImpactPins.length
+                    : philImpactPins.filter((pin) => pin.region === region.id).length
+
+                  return (
+                    <button
+                      key={region.id}
+                      type="button"
+                      className={`phil-region-item ${activePhilRegion === region.id ? 'active' : ''}`}
+                      onClick={() => setActivePhilRegion(region.id)}
+                    >
+                      <span>{region.label}</span>
+                      <em>{count}</em>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="phil-region-selected">
+                <h4>Selected</h4>
+                <p>{selectedPhilRegion.label}</p>
+                <span>{visiblePhilPins.length} pinned location{visiblePhilPins.length > 1 ? 's' : ''}</span>
+              </div>
+            </aside>
+
+            <div className="phil-map-main">
+              <div className="phil-map-stage" role="img" aria-label="Community impact locations map">
+                <MapContainer
+                  center={selectedPhilRegion.center}
+                  zoom={selectedPhilRegion.zoom}
+                  zoomControl={false}
+                  className="phil-map-leaflet"
+                >
+                  <LayersControl position="topright">
+                    <LayersControl.BaseLayer checked name="🗺️ Map View">
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="🛰️ Satellite View">
+                      <TileLayer
+                        attribution="Tiles &copy; Esri"
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                      />
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="🌐 Hybrid View">
+                      <LayerGroup>
+                        <TileLayer
+                          attribution="Tiles &copy; Esri"
+                          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        />
+                        <TileLayer
+                          attribution="Labels &copy; Esri"
+                          url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                        />
+                      </LayerGroup>
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="⚪ Light Gray View">
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; CARTO'
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                      />
+                    </LayersControl.BaseLayer>
+                  </LayersControl>
+                  <ZoomControl position="topright" />
+                  <PhilImpactMapViewport center={selectedPhilRegion.center} zoom={selectedPhilRegion.zoom} />
+                  {visiblePhilPins.map((pin) => (
+                    <Marker key={pin.city} position={[pin.lat, pin.lng]} icon={philImpactMarkerIcon}>
+                      <Tooltip direction="top" offset={[0, -10]}>{pin.city}</Tooltip>
+                    </Marker>
+                  ))}
+                </MapContainer>
+              </div>
+            </div>
           </div>
           <div className="phil-map-marquee" aria-label="Impact locations">
             <div className="phil-map-marquee-track">
@@ -3059,6 +3161,11 @@ const ContactUsPage = () => {
           scale={1.28}
           opacity={0.55}
           mouseInteractive={false}
+          maxDpr={1.2}
+          resolutionScale={0.78}
+          targetFps={45}
+          antialias={false}
+          pauseWhenHidden
         />
         <div className="container">
           <div className="contact-layout">
@@ -3274,14 +3381,14 @@ function App() {
       {!isDashboardRoute && (
         <Navigation currentPath={currentPath} onNavigate={navigateTo} onSetAuthMode={setAuthMode} />
       )}
-      <AnimatePresence mode="wait">
+      <AnimatePresence initial={false}>
         <motion.div
           key={currentPath}
           className="route-transition"
-          initial={{ opacity: 0, y: 8, filter: 'blur(1px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, y: -6, filter: 'blur(1px)' }}
-          transition={{ duration: 0.26, ease: [0.25, 0.1, 0.25, 1] }}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
         >
           {pageContent}
         </motion.div>

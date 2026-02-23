@@ -86,7 +86,12 @@ export const Plasma = ({
   direction = 'forward',
   scale = 1,
   opacity = 1,
-  mouseInteractive = true
+  mouseInteractive = true,
+  maxDpr = 1.25,
+  resolutionScale = 0.85,
+  targetFps = 48,
+  antialias = false,
+  pauseWhenHidden = true
 }) => {
   const containerRef = useRef(null);
   const mousePos = useRef({ x: 0, y: 0 });
@@ -103,8 +108,8 @@ export const Plasma = ({
     const renderer = new Renderer({
       webgl: 2,
       alpha: true,
-      antialias: true,
-      dpr: Math.min(window.devicePixelRatio || 1, 2),
+      antialias,
+      dpr: Math.min(window.devicePixelRatio || 1, maxDpr),
       powerPreference: 'high-performance'
     });
     const gl = renderer.gl;
@@ -153,7 +158,9 @@ export const Plasma = ({
       const rect = containerRef.current.getBoundingClientRect();
       const width = Math.max(1, Math.floor(rect.width));
       const height = Math.max(1, Math.floor(rect.height));
-      renderer.setSize(width, height);
+      const renderWidth = Math.max(1, Math.floor(width * resolutionScale));
+      const renderHeight = Math.max(1, Math.floor(height * resolutionScale));
+      renderer.setSize(renderWidth, renderHeight);
       const res = program.uniforms.iResolution.value;
       res[0] = gl.drawingBufferWidth;
       res[1] = gl.drawingBufferHeight;
@@ -163,9 +170,31 @@ export const Plasma = ({
     ro.observe(containerEl);
     setSize();
 
+    let isVisible = true;
+    const io = new IntersectionObserver(
+      entries => {
+        isVisible = entries[0]?.isIntersecting ?? true;
+      },
+      { threshold: 0.01 }
+    );
+    io.observe(containerEl);
+
     let raf = 0;
     const t0 = performance.now();
+    let lastRenderTime = 0;
+    const frameInterval = targetFps > 0 ? 1000 / targetFps : 0;
+
     const loop = t => {
+      if (pauseWhenHidden && (document.hidden || !isVisible)) {
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      if (frameInterval > 0 && t - lastRenderTime < frameInterval) {
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      lastRenderTime = t;
+
       let timeValue = (t - t0) * 0.001;
 
       if (direction === 'pingpong') {
@@ -188,6 +217,7 @@ export const Plasma = ({
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      io.disconnect();
       if (mouseInteractive && containerEl) {
         containerEl.removeEventListener('mousemove', handleMouseMove);
       }
@@ -197,7 +227,7 @@ export const Plasma = ({
         console.warn('Canvas already removed from container');
       }
     };
-  }, [color, speed, direction, scale, opacity, mouseInteractive]);
+  }, [color, speed, direction, scale, opacity, mouseInteractive, maxDpr, resolutionScale, targetFps, antialias, pauseWhenHidden]);
 
   return <div ref={containerRef} className="plasma-container" />;
 };
