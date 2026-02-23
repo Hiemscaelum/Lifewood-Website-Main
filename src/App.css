@@ -398,7 +398,8 @@ img {
 }
 
 .nav-link.active {
-  color: #000;
+  color: #ffb347;
+  font-weight: 700;
 }
 
 .nav-chevron {
@@ -417,11 +418,9 @@ img {
   min-width: 280px;
   border-radius: 18px;
   padding: 8px;
-  background: rgba(235, 237, 240, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 14px 28px rgba(10, 16, 23, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #e7eaee;
+  border: 1px solid rgba(189, 198, 206, 0.9);
+  box-shadow: 0 14px 28px rgba(10, 16, 23, 0.12);
   z-index: 12;
 }
 
