@@ -112,6 +112,47 @@ const getInitialAddMemberFormState = () => ({
   confirmPassword: '',
 })
 
+const getInitialEvaluationFormState = () => ({
+  accuracy: 5,
+  quality: 5,
+  progress: 5,
+  consistency: 5,
+  submissionLink: '',
+  notes: '',
+  recommendation: '',
+})
+
+const EVALUATION_TASKS = ['Genealogy', 'Website Development', 'Heygen', 'Gamma Presentation', 'Production Planning']
+
+const createSubmissionLink = (user, task) => {
+  const userSlug = (user.username || user.email.split('@')[0] || 'intern')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  const taskSlug = task
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return `https://submissions.lifewood.local/${userSlug}/${taskSlug}`
+}
+
+const getVisiblePageNumbers = (currentPage, totalPages, maxVisible = 3) => {
+  if (totalPages <= maxVisible) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1)
+  }
+
+  const halfWindow = Math.floor(maxVisible / 2)
+  let startPage = Math.max(1, currentPage - halfWindow)
+  let endPage = startPage + maxVisible - 1
+
+  if (endPage > totalPages) {
+    endPage = totalPages
+    startPage = endPage - maxVisible + 1
+  }
+
+  return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index)
+}
+
 const createAdminUsers = () => ADMIN_NAME_ROWS.map((entry, index) => {
   const firstToken = entry.first.split(' ')[0] || ''
   const isAdminUser = entry.first === 'Francis Merc' && entry.last === 'Barluado'
@@ -170,8 +211,6 @@ const Navigation = ({ currentPath = '/', onNavigate = () => {}, onSetAuthMode = 
   const [openSubmenu, setOpenSubmenu] = useState(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [openMobileSection, setOpenMobileSection] = useState(null)
-  const [isNavVisible, setIsNavVisible] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 1200 : true))
-  const [isDesktopNav, setIsDesktopNav] = useState(() => (typeof window !== 'undefined' ? window.innerWidth > 1200 : false))
 
   useEffect(() => {
     const handleScroll = () => {
@@ -196,24 +235,14 @@ const Navigation = ({ currentPath = '/', onNavigate = () => {}, onSetAuthMode = 
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 1200) {
-        setIsDesktopNav(true)
         setIsMobileMenuOpen(false)
         setOpenMobileSection(null)
-      } else {
-        setIsDesktopNav(false)
-        setIsNavVisible(true)
       }
     }
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-
-  useEffect(() => {
-    if (isMobileMenuOpen) {
-      setIsNavVisible(true)
-    }
-  }, [isMobileMenuOpen])
 
   const menuItems = [
     { title: 'Home', href: '/', submenu: [] },
@@ -269,22 +298,11 @@ const Navigation = ({ currentPath = '/', onNavigate = () => {}, onSetAuthMode = 
 
   return (
     <>
-      <div
-        className="nav-hover-zone"
-        aria-hidden="true"
-        onMouseEnter={() => setIsNavVisible(true)}
-      />
       <motion.nav 
-        className={`navbar ${isScrolled ? 'scrolled' : ''} ${isNavVisible ? 'is-visible' : 'is-hidden'}`}
+        className={`navbar ${isScrolled ? 'scrolled' : ''} is-visible`}
         initial={{ y: -100 }}
-        animate={{ y: isNavVisible || !isDesktopNav ? 0 : -110 }}
+        animate={{ y: 0 }}
         transition={{ duration: 0.35 }}
-        onMouseEnter={() => setIsNavVisible(true)}
-        onMouseLeave={() => {
-          if (!isMobileMenuOpen && isDesktopNav) {
-            setIsNavVisible(false)
-          }
-        }}
       >
         <div className="nav-container">
         <button type="button" className="nav-logo-link" onClick={() => onNavigate('/')} aria-label="Go to home page">
@@ -1448,6 +1466,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [isAdminUserMenuOpen, setIsAdminUserMenuOpen] = useState(false)
   const [isAdminNotificationOpen, setIsAdminNotificationOpen] = useState(false)
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false)
+  const [selectedDashboardUser, setSelectedDashboardUser] = useState(null)
+  const [selectedEvaluationItem, setSelectedEvaluationItem] = useState(null)
   const [editingMemberId, setEditingMemberId] = useState(null)
   const [openMemberActionMenuId, setOpenMemberActionMenuId] = useState(null)
   const [notificationTab, setNotificationTab] = useState('view-all')
@@ -1458,15 +1478,35 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [isApprovalFilterOpen, setIsApprovalFilterOpen] = useState(false)
   const [isApprovalHistorySearchOpen, setIsApprovalHistorySearchOpen] = useState(false)
   const [isApprovalHistoryFilterOpen, setIsApprovalHistoryFilterOpen] = useState(false)
+  const [isEvaluationHistorySearchOpen, setIsEvaluationHistorySearchOpen] = useState(false)
+  const [isEvaluationHistoryFilterOpen, setIsEvaluationHistoryFilterOpen] = useState(false)
+  const [isAnalyticsSearchOpen, setIsAnalyticsSearchOpen] = useState(false)
+  const [isAnalyticsFilterOpen, setIsAnalyticsFilterOpen] = useState(false)
   const [evaluationSearchQuery, setEvaluationSearchQuery] = useState('')
   const [approvalSearchQuery, setApprovalSearchQuery] = useState('')
+  const [approvalSortMode, setApprovalSortMode] = useState('all')
   const [approvalYearFilter, setApprovalYearFilter] = useState('all')
+  const [approvalRoleFilter, setApprovalRoleFilter] = useState('all')
   const [approvalHistorySearchQuery, setApprovalHistorySearchQuery] = useState('')
+  const [approvalHistorySortMode, setApprovalHistorySortMode] = useState('all')
   const [approvalHistoryYearFilter, setApprovalHistoryYearFilter] = useState('all')
+  const [approvalHistoryRoleFilter, setApprovalHistoryRoleFilter] = useState('all')
+  const [evaluationHistorySearchQuery, setEvaluationHistorySearchQuery] = useState('')
+  const [evaluationHistorySortMode, setEvaluationHistorySortMode] = useState('all')
+  const [evaluationHistoryYearFilter, setEvaluationHistoryYearFilter] = useState('all')
+  const [analyticsSearchQuery, setAnalyticsSearchQuery] = useState('')
+  const [analyticsSortMode, setAnalyticsSortMode] = useState('all')
+  const [selectedEvaluationDetailTask, setSelectedEvaluationDetailTask] = useState('')
+  const [selectedEvaluationModalTask, setSelectedEvaluationModalTask] = useState('')
   const [approvalSubtab, setApprovalSubtab] = useState('pending')
+  const [evaluationSubtab, setEvaluationSubtab] = useState('queue')
   const [tableSortMode, setTableSortMode] = useState('date')
+  const [tableRoleFilter, setTableRoleFilter] = useState('all')
   const [tableSearchQuery, setTableSearchQuery] = useState('')
   const [manageUsers, setManageUsers] = useState(() => createAdminUsers())
+  const [evaluationRecords, setEvaluationRecords] = useState({})
+  const [evaluationForm, setEvaluationForm] = useState(() => getInitialEvaluationFormState())
+  const [evaluationFeedback, setEvaluationFeedback] = useState('')
   const [addMemberStep, setAddMemberStep] = useState(1)
   const [addMemberForm, setAddMemberForm] = useState(() => getInitialAddMemberFormState())
   const [addMemberError, setAddMemberError] = useState('')
@@ -1490,6 +1530,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       year: '2026',
     },
   ])
+  const [archivedApprovalHistoryIds, setArchivedApprovalHistoryIds] = useState(() => new Set())
+  const [archivedEvaluationHistoryIds, setArchivedEvaluationHistoryIds] = useState(() => new Set())
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Approval Request', description: 'Aleah June Vergara requested Intern access. Review and accept or decline the registration.', time: '8H', read: false, status: 'pending', type: 'approval', section: 'current' },
     { id: 2, title: 'Role Update Request', description: 'Julius Jr. Lastimosa requested role update to Employee.', time: '10H', read: false, status: 'action', type: 'messages', section: 'current' },
@@ -1504,24 +1546,37 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const evaluationSearchInputRef = useRef(null)
   const approvalSearchInputRef = useRef(null)
   const approvalHistorySearchInputRef = useRef(null)
+  const evaluationHistorySearchInputRef = useRef(null)
+  const analyticsSearchInputRef = useRef(null)
   const tableFilterRef = useRef(null)
   const approvalFilterRef = useRef(null)
   const approvalHistoryFilterRef = useRef(null)
+  const evaluationHistoryFilterRef = useRef(null)
+  const analyticsFilterRef = useRef(null)
   const PAGE_SIZE = 5
   const MANAGE_PAGE_SIZE = 5
+  const EVALUATION_PAGE_SIZE = 4
+  const APPROVAL_PAGE_SIZE = 5
+  const ANALYTICS_PAGE_SIZE = 3
   const [currentPage, setCurrentPage] = useState(1)
   const [manageCurrentPage, setManageCurrentPage] = useState(1)
+  const [evaluationCurrentPage, setEvaluationCurrentPage] = useState(1)
+  const [evaluationHistoryCurrentPage, setEvaluationHistoryCurrentPage] = useState(1)
+  const [approvalCurrentPage, setApprovalCurrentPage] = useState(1)
+  const [approvalHistoryCurrentPage, setApprovalHistoryCurrentPage] = useState(1)
+  const [analyticsCurrentPage, setAnalyticsCurrentPage] = useState(1)
   const [adminActivePanel, setAdminActivePanel] = useState('dashboard')
   const normalizedSearch = tableSearchQuery.trim().toLowerCase()
   const hasTableSearchValue = normalizedSearch.length > 0
   const isTableSearchVisible = isTableSearchOpen || hasTableSearchValue
   const filteredUsers = manageUsers.filter((user) => {
-    if (!normalizedSearch) return true
-    return (
+    const matchesRole = tableRoleFilter === 'all' || user.role.toLowerCase() === tableRoleFilter
+    const matchesSearch = !normalizedSearch || (
       user.name.toLowerCase().includes(normalizedSearch) ||
       user.email.toLowerCase().includes(normalizedSearch) ||
       user.role.toLowerCase().includes(normalizedSearch)
     )
+    return matchesRole && matchesSearch
   })
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     if (tableSortMode === 'az') {
@@ -1535,19 +1590,83 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const startIndex = totalResults === 0 ? 0 : (activePage - 1) * PAGE_SIZE
   const endIndex = totalResults === 0 ? 0 : Math.min(startIndex + PAGE_SIZE, totalResults)
   const pagedUsers = sortedUsers.slice(startIndex, endIndex)
-  const visiblePages = Array.from({ length: Math.min(3, totalPages) }, (_, index) => index + 1)
+  const visiblePages = getVisiblePageNumbers(activePage, totalPages)
   const topScores = [98.5, 97.2, 95.8, 94.5, 92.1]
   const topPerformers = manageUsers.slice(0, 5).map((user, index) => ({
     ...user,
     score: topScores[index] ?? 90,
     tasks: 95 + (4 - index) * 9,
   }))
+  const analyticsUsers = manageUsers
+    .filter((user) => user.role !== 'Admin')
+    .map((user, index) => {
+      const accuracy = Math.max(78, 97 - (index % 6) * 2.1)
+      const productivity = 72 + (index % 5) * 5
+      const consistency = 80 + (index % 4) * 4
+      const completedTasks = 64 + index * 3
+      return {
+        ...user,
+        accuracy: Number(accuracy.toFixed(1)),
+        productivity,
+        consistency,
+        completedTasks,
+        averageScore: Math.round((accuracy + productivity + consistency) / 3),
+      }
+    })
+  const analyticsTopUsers = [...analyticsUsers]
+    .sort((a, b) => b.averageScore - a.averageScore)
+    .slice(0, 5)
+  const analyticsSummary = [
+    { label: 'Tracked Users', value: analyticsUsers.length, note: 'Current performance roster', icon: <IconUsers size={18} /> },
+    { label: 'Avg Accuracy', value: `${Math.round(analyticsUsers.reduce((sum, user) => sum + user.accuracy, 0) / Math.max(analyticsUsers.length, 1))}%`, note: 'Across active user output', icon: <IconReport size={18} /> },
+    { label: 'Tasks Completed', value: analyticsUsers.reduce((sum, user) => sum + user.completedTasks, 0).toLocaleString(), note: 'Tracked delivery volume', icon: <IconBook2 size={18} /> },
+  ]
+  const normalizedAnalyticsSearch = analyticsSearchQuery.trim().toLowerCase()
+  const hasAnalyticsSearchValue = normalizedAnalyticsSearch.length > 0
+  const isAnalyticsSearchVisible = isAnalyticsSearchOpen || hasAnalyticsSearchValue
+  const analyticsBreakdown = [...analyticsUsers]
+    .map((user) => ({
+    id: `analytics-${user.id}`,
+    name: user.name,
+    role: user.role,
+    accuracy: user.accuracy,
+    productivity: user.productivity,
+    consistency: user.consistency,
+    completedTasks: user.completedTasks,
+    averageScore: user.averageScore,
+  }))
+  const filteredAnalyticsBreakdown = analyticsBreakdown.filter((user) => (
+    !normalizedAnalyticsSearch || (
+      user.name.toLowerCase().includes(normalizedAnalyticsSearch) ||
+      user.role.toLowerCase().includes(normalizedAnalyticsSearch) ||
+      String(user.averageScore).includes(normalizedAnalyticsSearch)
+    )
+  ))
+  const sortedAnalyticsBreakdown = [...filteredAnalyticsBreakdown].sort((a, b) => {
+    if (analyticsSortMode === 'all') {
+      return 0
+    }
+    if (analyticsSortMode === 'az') {
+      return a.name.localeCompare(b.name)
+    }
+    if (analyticsSortMode === 'lowest') {
+      return a.averageScore - b.averageScore
+    }
+    return b.averageScore - a.averageScore
+  })
+  const analyticsTotalResults = sortedAnalyticsBreakdown.length
+  const analyticsTotalPages = Math.max(1, Math.ceil(analyticsTotalResults / ANALYTICS_PAGE_SIZE))
+  const analyticsActivePage = Math.min(analyticsCurrentPage, analyticsTotalPages)
+  const analyticsStartIndex = analyticsTotalResults === 0 ? 0 : (analyticsActivePage - 1) * ANALYTICS_PAGE_SIZE
+  const analyticsEndIndex = analyticsTotalResults === 0 ? 0 : Math.min(analyticsStartIndex + ANALYTICS_PAGE_SIZE, analyticsTotalResults)
+  const pagedAnalyticsBreakdown = sortedAnalyticsBreakdown.slice(analyticsStartIndex, analyticsEndIndex)
+  const visibleAnalyticsPages = getVisiblePageNumbers(analyticsActivePage, analyticsTotalPages)
   const manageTotalResults = manageUsers.length
   const manageTotalPages = Math.max(1, Math.ceil(manageTotalResults / MANAGE_PAGE_SIZE))
   const manageActivePage = Math.min(manageCurrentPage, manageTotalPages)
   const manageStartIndex = manageTotalResults === 0 ? 0 : (manageActivePage - 1) * MANAGE_PAGE_SIZE
   const manageEndIndex = manageTotalResults === 0 ? 0 : Math.min(manageStartIndex + MANAGE_PAGE_SIZE, manageTotalResults)
-  const visibleManagePages = Array.from({ length: Math.min(3, manageTotalPages) }, (_, index) => index + 1)
+  const visibleManagePages = getVisiblePageNumbers(manageActivePage, manageTotalPages)
 
   const manageMembers = manageUsers.slice(manageStartIndex, manageEndIndex)
   const approvalQueue = manageUsers
@@ -1561,8 +1680,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const normalizedApprovalSearch = approvalSearchQuery.trim().toLowerCase()
   const hasApprovalSearchValue = normalizedApprovalSearch.length > 0
   const isApprovalSearchVisible = isApprovalSearchOpen || hasApprovalSearchValue
-  const approvalYears = Array.from(new Set(approvalQueue.map((user) => String(new Date(user.joined).getFullYear())))).sort((a, b) => b.localeCompare(a))
   const filteredApprovalQueue = approvalQueue.filter((user) => (
+    (approvalRoleFilter === 'all' || user.requestedRole.toLowerCase() === approvalRoleFilter) &&
     (approvalYearFilter === 'all' || String(new Date(user.joined).getFullYear()) === approvalYearFilter) &&
     (
       !normalizedApprovalSearch ||
@@ -1571,11 +1690,25 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       user.requestedRole.toLowerCase().includes(normalizedApprovalSearch)
     )
   ))
+  const sortedApprovalQueue = [...filteredApprovalQueue].sort((a, b) => {
+    if (approvalSortMode === 'az') {
+      return a.name.localeCompare(b.name)
+    }
+    return 0
+  })
+  const approvalTotalResults = sortedApprovalQueue.length
+  const approvalTotalPages = Math.max(1, Math.ceil(approvalTotalResults / APPROVAL_PAGE_SIZE))
+  const approvalActivePage = Math.min(approvalCurrentPage, approvalTotalPages)
+  const approvalStartIndex = approvalTotalResults === 0 ? 0 : (approvalActivePage - 1) * APPROVAL_PAGE_SIZE
+  const approvalEndIndex = approvalTotalResults === 0 ? 0 : Math.min(approvalStartIndex + APPROVAL_PAGE_SIZE, approvalTotalResults)
+  const pagedApprovalQueue = sortedApprovalQueue.slice(approvalStartIndex, approvalEndIndex)
+  const visibleApprovalPages = getVisiblePageNumbers(approvalActivePage, approvalTotalPages)
   const normalizedApprovalHistorySearch = approvalHistorySearchQuery.trim().toLowerCase()
   const hasApprovalHistorySearchValue = normalizedApprovalHistorySearch.length > 0
   const isApprovalHistorySearchVisible = isApprovalHistorySearchOpen || hasApprovalHistorySearchValue
-  const approvalHistoryYears = Array.from(new Set(approvalHistory.map((entry) => entry.year))).sort((a, b) => b.localeCompare(a))
-  const filteredApprovalHistory = approvalHistory.filter((entry) => {
+  const visibleApprovalHistoryEntries = approvalHistory.filter((entry) => !archivedApprovalHistoryIds.has(entry.id))
+  const filteredApprovalHistory = visibleApprovalHistoryEntries.filter((entry) => {
+    if (approvalHistoryRoleFilter !== 'all' && entry.role.toLowerCase() !== approvalHistoryRoleFilter) return false
     if (approvalHistoryYearFilter !== 'all' && entry.year !== approvalHistoryYearFilter) return false
     if (!normalizedApprovalHistorySearch) return true
     return (
@@ -1585,6 +1718,19 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       entry.decision.toLowerCase().includes(normalizedApprovalHistorySearch)
     )
   })
+  const sortedApprovalHistory = [...filteredApprovalHistory].sort((a, b) => {
+    if (approvalHistorySortMode === 'az') {
+      return a.name.localeCompare(b.name)
+    }
+    return 0
+  })
+  const approvalHistoryTotalResults = sortedApprovalHistory.length
+  const approvalHistoryTotalPages = Math.max(1, Math.ceil(approvalHistoryTotalResults / APPROVAL_PAGE_SIZE))
+  const approvalHistoryActivePage = Math.min(approvalHistoryCurrentPage, approvalHistoryTotalPages)
+  const approvalHistoryStartIndex = approvalHistoryTotalResults === 0 ? 0 : (approvalHistoryActivePage - 1) * APPROVAL_PAGE_SIZE
+  const approvalHistoryEndIndex = approvalHistoryTotalResults === 0 ? 0 : Math.min(approvalHistoryStartIndex + APPROVAL_PAGE_SIZE, approvalHistoryTotalResults)
+  const pagedApprovalHistory = sortedApprovalHistory.slice(approvalHistoryStartIndex, approvalHistoryEndIndex)
+  const visibleApprovalHistoryPages = getVisiblePageNumbers(approvalHistoryActivePage, approvalHistoryTotalPages)
   const tabFilteredNotifications = notifications.filter((item) => (
     notificationTab === 'view-all' ? true : item.type === notificationTab
   ))
@@ -1596,31 +1742,124 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const pendingInternApprovals = approvalQueue.filter((user) => user.requestedRole === 'Intern').length
   const pendingEmployeeApprovals = approvalQueue.filter((user) => user.requestedRole === 'Employee').length
   const internUsers = manageUsers.filter((user) => user.role === 'Intern')
+  const internAnalyticsUsers = analyticsUsers.filter((user) => user.role === 'Intern')
+  const completedEvaluationCount = Object.values(evaluationRecords).filter((entry) => entry.status === 'completed').length
+  const inProgressEvaluationCount = Object.values(evaluationRecords).filter((entry) => entry.status === 'in-progress').length
+  const averageInternProgress = internAnalyticsUsers.length > 0
+    ? `${Math.round(internAnalyticsUsers.reduce((sum, user) => sum + user.averageScore, 0) / internAnalyticsUsers.length)}%`
+    : '0%'
   const evaluationSummary = [
-    { label: 'Interns For Review', value: internUsers.length, note: 'Current active roster', icon: <IconBook2 size={18} /> },
-    { label: 'Due This Week', value: Math.min(internUsers.length, 6), note: 'Progress checks scheduled', icon: <IconUserCheck size={18} /> },
-    { label: 'Average Progress', value: '89%', note: 'Overall intern benchmark', icon: <IconReport size={18} /> },
+    { label: 'Interns For Review', value: Math.max(internUsers.length - completedEvaluationCount, 0), note: 'Active queue awaiting scoring', icon: <IconBook2 size={18} /> },
+    { label: 'Now Evaluating', value: inProgressEvaluationCount, note: 'Drafts currently in progress', icon: <IconUserCheck size={18} /> },
+    { label: 'Average Progress', value: averageInternProgress, note: 'Overall intern benchmark', icon: <IconReport size={18} /> },
   ]
-  const evaluationTracks = ['Prompt Accuracy', 'Annotation Quality', 'Internship Progress', 'Task Consistency']
-  const evaluationDueTimes = ['Today, 3:00 PM', 'Tomorrow, 10:00 AM', 'Tomorrow, 1:00 PM', 'Mar 12, 9:00 AM']
-  const evaluationStatuses = ['urgent', 'scheduled', 'scheduled', 'queued']
-  const evaluationQueue = internUsers.slice(0, 4).map((user, index) => ({
-    id: `eval-${user.email}`,
-    name: user.name,
-    track: evaluationTracks[index % evaluationTracks.length],
-    reviewer: 'Francis Merc Barluado',
-    due: evaluationDueTimes[index % evaluationDueTimes.length],
-    status: evaluationStatuses[index % evaluationStatuses.length],
-  }))
+  const evaluationDueTimes = ['Today, 3:00 PM', 'Tomorrow, 10:00 AM', 'Tomorrow, 1:00 PM', 'Mar 12, 9:00 AM', 'Mar 14, 2:00 PM']
+  const evaluationStatuses = ['urgent', 'scheduled', 'scheduled', 'queued', 'queued']
+  const evaluationQueue = internUsers.map((user, index) => {
+    const record = evaluationRecords[user.email]
+    const completedTasks = record?.completedTasks ?? []
+    const pendingTasks = EVALUATION_TASKS.filter((task) => !completedTasks.includes(task))
+    const nextTask = pendingTasks[0] || EVALUATION_TASKS[0]
+    const taskIndex = EVALUATION_TASKS.indexOf(nextTask)
+    const normalizedTaskIndex = taskIndex >= 0 ? taskIndex : 0
+    const status = pendingTasks.length === 0
+      ? 'completed'
+      : (record?.status || evaluationStatuses[index % evaluationStatuses.length])
+    const pendingSubmissions = pendingTasks.map((task) => ({
+      task,
+      link: record?.submissionLinks?.[task] || createSubmissionLink(user, task),
+    }))
+    return {
+      id: `eval-${user.email}`,
+      name: user.name,
+      email: user.email,
+      initials: user.initials,
+      track: nextTask,
+      reviewer: 'Francis Merc Barluado',
+      due: evaluationDueTimes[normalizedTaskIndex % evaluationDueTimes.length],
+      status,
+      score: record?.score ?? null,
+      pendingCount: pendingTasks.length,
+      pendingTasks,
+      pendingSubmissions,
+      currentSubmissionLink: pendingSubmissions[0]?.link || '',
+      notes: record?.notes ?? '',
+      recommendation: record?.recommendation ?? '',
+      course: user.course,
+      university: user.university,
+      internshipHours: user.internshipHours,
+      activity: user.activity,
+      updatedAt: record?.updatedAt ?? '',
+    }
+  })
+  const activeEvaluationQueue = evaluationQueue.filter((item) => item.pendingCount > 0)
   const normalizedEvaluationSearch = evaluationSearchQuery.trim().toLowerCase()
   const hasEvaluationSearchValue = normalizedEvaluationSearch.length > 0
   const isEvaluationSearchVisible = isEvaluationSearchOpen || hasEvaluationSearchValue
-  const filteredEvaluationQueue = evaluationQueue.filter((item) => (
+  const filteredEvaluationQueue = activeEvaluationQueue.filter((item) => (
     !normalizedEvaluationSearch ||
     item.name.toLowerCase().includes(normalizedEvaluationSearch) ||
     item.track.toLowerCase().includes(normalizedEvaluationSearch) ||
     item.reviewer.toLowerCase().includes(normalizedEvaluationSearch)
   ))
+  const evaluationTotalResults = filteredEvaluationQueue.length
+  const evaluationTotalPages = Math.max(1, Math.ceil(evaluationTotalResults / EVALUATION_PAGE_SIZE))
+  const evaluationActivePage = Math.min(evaluationCurrentPage, evaluationTotalPages)
+  const evaluationStartIndex = evaluationTotalResults === 0 ? 0 : (evaluationActivePage - 1) * EVALUATION_PAGE_SIZE
+  const evaluationEndIndex = evaluationTotalResults === 0 ? 0 : Math.min(evaluationStartIndex + EVALUATION_PAGE_SIZE, evaluationTotalResults)
+  const pagedEvaluationQueue = filteredEvaluationQueue.slice(evaluationStartIndex, evaluationEndIndex)
+  const visibleEvaluationPages = getVisiblePageNumbers(evaluationActivePage, evaluationTotalPages)
+  const evaluationHistoryEntries = Object.entries(evaluationRecords)
+    .flatMap(([email, record]) => {
+      const matchedUser = manageUsers.find((user) => user.email === email)
+      if (!record?.completedTasks?.length || !matchedUser) return []
+      const pendingTasks = EVALUATION_TASKS.filter((task) => !(record.completedTasks || []).includes(task))
+      return record.completedTasks.map((task) => ({
+        id: `eval-history-${email}-${task}`,
+        name: matchedUser.name,
+        email,
+        task,
+        reviewer: 'Francis Merc Barluado',
+        submittedAt: record.taskUpdatedAt?.[task] || record.updatedAt || '—',
+        score: record.taskScores?.[task] ?? record.score ?? null,
+        submissionLink: record.submissionLinks?.[task] || '',
+        pendingCount: pendingTasks.length,
+        pendingTasks,
+        year: String(new Date(record.taskUpdatedAt?.[task] || record.updatedAt || Date.now()).getFullYear()),
+        course: matchedUser.course,
+        university: matchedUser.university,
+      }))
+    })
+  const normalizedEvaluationHistorySearch = evaluationHistorySearchQuery.trim().toLowerCase()
+  const hasEvaluationHistorySearchValue = normalizedEvaluationHistorySearch.length > 0
+  const isEvaluationHistorySearchVisible = isEvaluationHistorySearchOpen || hasEvaluationHistorySearchValue
+  const visibleEvaluationHistoryEntries = evaluationHistoryEntries.filter((entry) => !archivedEvaluationHistoryIds.has(entry.id))
+  const evaluationHistoryYears = Array.from(new Set(visibleEvaluationHistoryEntries.map((entry) => entry.year))).sort((a, b) => b.localeCompare(a))
+  const filteredEvaluationHistory = visibleEvaluationHistoryEntries.filter((entry) => {
+    if (evaluationHistoryYearFilter !== 'all' && entry.year !== evaluationHistoryYearFilter) return false
+    if (!normalizedEvaluationHistorySearch) return true
+    return (
+      entry.name.toLowerCase().includes(normalizedEvaluationHistorySearch) ||
+      entry.email.toLowerCase().includes(normalizedEvaluationHistorySearch) ||
+      entry.task.toLowerCase().includes(normalizedEvaluationHistorySearch) ||
+      entry.reviewer.toLowerCase().includes(normalizedEvaluationHistorySearch)
+    )
+  })
+  const sortedEvaluationHistory = [...filteredEvaluationHistory].sort((a, b) => {
+    if (evaluationHistorySortMode === 'az') {
+      return a.name.localeCompare(b.name)
+    }
+    return (Date.parse(b.submittedAt) || 0) - (Date.parse(a.submittedAt) || 0)
+  })
+  const evaluationHistoryTotalResults = sortedEvaluationHistory.length
+  const evaluationHistoryTotalPages = Math.max(1, Math.ceil(evaluationHistoryTotalResults / EVALUATION_PAGE_SIZE))
+  const evaluationHistoryActivePage = Math.min(evaluationHistoryCurrentPage, evaluationHistoryTotalPages)
+  const evaluationHistoryStartIndex = evaluationHistoryTotalResults === 0 ? 0 : (evaluationHistoryActivePage - 1) * EVALUATION_PAGE_SIZE
+  const evaluationHistoryEndIndex = evaluationHistoryTotalResults === 0
+    ? 0
+    : Math.min(evaluationHistoryStartIndex + EVALUATION_PAGE_SIZE, evaluationHistoryTotalResults)
+  const pagedEvaluationHistory = sortedEvaluationHistory.slice(evaluationHistoryStartIndex, evaluationHistoryEndIndex)
+  const visibleEvaluationHistoryPages = getVisiblePageNumbers(evaluationHistoryActivePage, evaluationHistoryTotalPages)
   const evaluationRubric = [
     { title: 'Task Accuracy', description: 'Measure intern output quality, instruction-following, and correction rate.' },
     { title: 'Attendance and Hours', description: 'Check internship hours submitted, schedule consistency, and required progress.' },
@@ -1644,6 +1883,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       if (approvalHistoryFilterRef.current && !approvalHistoryFilterRef.current.contains(event.target)) {
         setIsApprovalHistoryFilterOpen(false)
       }
+      if (evaluationHistoryFilterRef.current && !evaluationHistoryFilterRef.current.contains(event.target)) {
+        setIsEvaluationHistoryFilterOpen(false)
+      }
+      if (analyticsFilterRef.current && !analyticsFilterRef.current.contains(event.target)) {
+        setIsAnalyticsFilterOpen(false)
+      }
       if (!event.target.closest('.admin-manage-row-actions')) {
         setOpenMemberActionMenuId(null)
       }
@@ -1655,7 +1900,27 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [tableSearchQuery])
+  }, [tableSearchQuery, tableRoleFilter])
+
+  useEffect(() => {
+    setEvaluationCurrentPage(1)
+  }, [evaluationSearchQuery])
+
+  useEffect(() => {
+    setEvaluationHistoryCurrentPage(1)
+  }, [evaluationSubtab, evaluationRecords, evaluationHistorySearchQuery, evaluationHistoryYearFilter, evaluationHistorySortMode])
+
+  useEffect(() => {
+    setApprovalCurrentPage(1)
+  }, [approvalSearchQuery, approvalYearFilter, approvalSortMode, approvalRoleFilter])
+
+  useEffect(() => {
+    setApprovalHistoryCurrentPage(1)
+  }, [approvalHistorySearchQuery, approvalHistoryYearFilter, approvalHistorySortMode, approvalHistoryRoleFilter])
+
+  useEffect(() => {
+    setAnalyticsCurrentPage(1)
+  }, [analyticsSearchQuery, analyticsSortMode])
 
   useEffect(() => {
     if (isTableSearchOpen) {
@@ -1682,13 +1947,25 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   }, [isApprovalHistorySearchOpen])
 
   useEffect(() => {
-    if (!isAddMemberModalOpen) return undefined
+    if (isEvaluationHistorySearchOpen) {
+      evaluationHistorySearchInputRef.current?.focus()
+    }
+  }, [isEvaluationHistorySearchOpen])
+
+  useEffect(() => {
+    if (isAnalyticsSearchOpen) {
+      analyticsSearchInputRef.current?.focus()
+    }
+  }, [isAnalyticsSearchOpen])
+
+  useEffect(() => {
+    if (!isAddMemberModalOpen && !selectedDashboardUser && !selectedEvaluationItem) return undefined
     const { overflow } = document.body.style
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = overflow
     }
-  }, [isAddMemberModalOpen])
+  }, [isAddMemberModalOpen, selectedDashboardUser, selectedEvaluationItem])
 
   const handleAddMemberFieldChange = (field, value) => {
     setAddMemberForm((prev) => {
@@ -1872,6 +2149,286 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setNotifications([])
   }
 
+  const getEvaluationFormForTask = (record, item, task) => {
+    const taskScoreBreakdown = record?.taskScoreBreakdown?.[task]
+    return {
+      accuracy: taskScoreBreakdown?.accuracy ?? record?.scores?.accuracy ?? 5,
+      quality: taskScoreBreakdown?.quality ?? record?.scores?.quality ?? 5,
+      progress: taskScoreBreakdown?.progress ?? record?.scores?.progress ?? 5,
+      consistency: taskScoreBreakdown?.consistency ?? record?.scores?.consistency ?? 5,
+      submissionLink: record?.submissionLinks?.[task] || item?.pendingSubmissions?.find((entry) => entry.task === task)?.link || '',
+      notes: record?.taskNotes?.[task] ?? record?.notes ?? '',
+      recommendation: record?.taskRecommendations?.[task] ?? record?.recommendation ?? '',
+    }
+  }
+
+  const handleOpenEvaluation = (item) => {
+    const existingRecord = evaluationRecords[item.email]
+    setSelectedEvaluationItem(item)
+    setSelectedEvaluationModalTask(item.track)
+    setEvaluationFeedback('')
+    setEvaluationForm(getEvaluationFormForTask(existingRecord, item, item.track))
+    setEvaluationRecords((prev) => ({
+      ...prev,
+      [item.email]: {
+        ...prev[item.email],
+        status: prev[item.email]?.status === 'completed' ? 'completed' : 'in-progress',
+      },
+    }))
+  }
+
+  const handleSelectEvaluationModalTask = (task) => {
+    if (!selectedEvaluationItem) return
+    const existingRecord = evaluationRecords[selectedEvaluationItem.email]
+    setSelectedEvaluationModalTask(task)
+    setEvaluationForm(getEvaluationFormForTask(existingRecord, selectedEvaluationItem, task))
+  }
+
+  const handleOpenEvaluationDetails = (item) => {
+    const matchedUser = manageUsers.find((user) => user.email === item.email)
+    const evaluationRecord = evaluationRecords[item.email]
+    const evaluationStatus = evaluationRecord?.status || item.status || 'queued'
+    const evaluationUpdatedAt = evaluationRecord?.updatedAt || item.updatedAt || '—'
+    const submittedAt = evaluationStatus === 'completed' ? evaluationUpdatedAt : 'Not submitted yet'
+    const fallbackInitials = item.name
+      .split(' ')
+      .map((part) => part.charAt(0))
+      .slice(0, 2)
+      .join('')
+      .toUpperCase()
+
+    const baseUserDetails = matchedUser || {
+      id: item.id,
+      initials: fallbackInitials || 'NA',
+      name: item.name,
+      email: item.email,
+      role: 'Intern',
+      status: 'active',
+      joined: new Date().toISOString().slice(0, 10),
+      contactNumber: '—',
+      course: item.course || '—',
+      internshipHours: item.internshipHours || '—',
+      university: item.university || '—',
+      access: 'Intern',
+      activity: item.activity || '—',
+      onboarding: '—',
+      verified: true,
+      username: item.email?.split('@')[0] || '—',
+    }
+
+    const completedTaskSet = new Set(evaluationRecord?.completedTasks ?? [])
+    const evaluationTaskMap = EVALUATION_TASKS.reduce((acc, task, index) => {
+      acc[task] = {
+        status: completedTaskSet.has(task) ? 'completed' : (task === item.track ? evaluationStatus : 'queued'),
+        due: evaluationDueTimes[index % evaluationDueTimes.length],
+        submittedAt: evaluationRecord?.taskUpdatedAt?.[task] || 'Not submitted yet',
+        score: evaluationRecord?.taskScores?.[task] != null
+          ? `${evaluationRecord.taskScores[task]}/10`
+          : 'Not scored',
+        submissionLink: evaluationRecord?.submissionLinks?.[task]
+          || item.pendingSubmissions?.find((entry) => entry.task === task)?.link
+          || createSubmissionLink(baseUserDetails, task),
+      }
+      return acc
+    }, {})
+
+    setSelectedDashboardUser({
+      ...baseUserDetails,
+      detailType: 'evaluation',
+      evaluationTrack: item.track,
+      evaluationReviewer: item.reviewer,
+      evaluationDue: item.due,
+      evaluationStatus,
+      evaluationSubmittedAt: submittedAt,
+      evaluationUpdatedAt,
+      evaluationScore: item.score ? `${item.score}/10` : 'Not scored',
+      evaluationSubmissionLink: evaluationRecord?.submissionLinks?.[item.track] || item.currentSubmissionLink || '',
+      evaluationPendingCount: item.pendingCount,
+      evaluationPendingTasks: item.pendingTasks,
+      evaluationTasks: EVALUATION_TASKS,
+      evaluationTaskMap,
+    })
+    setSelectedEvaluationDetailTask(item.track)
+  }
+
+  const handleOpenEvaluationHistoryDetails = (entry) => {
+    handleOpenEvaluationDetails({
+      id: `eval-${entry.email}`,
+      name: entry.name,
+      email: entry.email,
+      track: entry.task,
+      reviewer: entry.reviewer,
+      due: entry.submittedAt,
+      status: 'completed',
+      score: entry.score,
+      pendingCount: entry.pendingCount,
+      pendingTasks: entry.pendingTasks,
+      currentSubmissionLink: entry.submissionLink,
+      updatedAt: entry.submittedAt,
+      course: entry.course,
+      university: entry.university,
+    })
+  }
+
+  const handleCloseEvaluation = () => {
+    setSelectedEvaluationItem(null)
+    setSelectedEvaluationModalTask('')
+    setEvaluationForm(getInitialEvaluationFormState())
+  }
+
+  const handleEvaluationFieldChange = (field, value) => {
+    setEvaluationForm((prev) => ({
+      ...prev,
+      [field]: ['accuracy', 'quality', 'progress', 'consistency'].includes(field)
+        ? Math.min(10, Math.max(1, Number(value)))
+        : value,
+    }))
+  }
+
+  const getEvaluationOverallScore = (formState) => {
+    const total = formState.accuracy + formState.quality + formState.progress + formState.consistency
+    return Number((total / 4).toFixed(1))
+  }
+
+  const persistEvaluationRecord = (status) => {
+    if (!selectedEvaluationItem) return
+    const activeTask = selectedEvaluationModalTask || selectedEvaluationItem.track
+    const nowLabel = formatAdminDate(new Date())
+    const nextScore = getEvaluationOverallScore(evaluationForm)
+
+    setEvaluationRecords((prev) => ({
+      ...prev,
+      [selectedEvaluationItem.email]: {
+        status: (() => {
+          if (status === 'in-progress') return 'in-progress'
+          const previousCompletedTasks = prev[selectedEvaluationItem.email]?.completedTasks ?? []
+          const completedTaskSet = new Set(previousCompletedTasks)
+          completedTaskSet.add(activeTask)
+          return completedTaskSet.size >= EVALUATION_TASKS.length ? 'completed' : 'queued'
+        })(),
+        scores: {
+          accuracy: evaluationForm.accuracy,
+          quality: evaluationForm.quality,
+          progress: evaluationForm.progress,
+          consistency: evaluationForm.consistency,
+        },
+        score: nextScore,
+        submissionLinks: {
+          ...(prev[selectedEvaluationItem.email]?.submissionLinks ?? {}),
+          [activeTask]: evaluationForm.submissionLink.trim(),
+        },
+        taskScores: {
+          ...(prev[selectedEvaluationItem.email]?.taskScores ?? {}),
+          [activeTask]: nextScore,
+        },
+        taskScoreBreakdown: {
+          ...(prev[selectedEvaluationItem.email]?.taskScoreBreakdown ?? {}),
+          [activeTask]: {
+            accuracy: evaluationForm.accuracy,
+            quality: evaluationForm.quality,
+            progress: evaluationForm.progress,
+            consistency: evaluationForm.consistency,
+          },
+        },
+        taskUpdatedAt: {
+          ...(prev[selectedEvaluationItem.email]?.taskUpdatedAt ?? {}),
+          [activeTask]: nowLabel,
+        },
+        completedTasks: (() => {
+          const previousCompletedTasks = prev[selectedEvaluationItem.email]?.completedTasks ?? []
+          if (status !== 'completed') return previousCompletedTasks
+          const completedTaskSet = new Set(previousCompletedTasks)
+          completedTaskSet.add(activeTask)
+          return Array.from(completedTaskSet)
+        })(),
+        taskNotes: {
+          ...(prev[selectedEvaluationItem.email]?.taskNotes ?? {}),
+          [activeTask]: evaluationForm.notes.trim(),
+        },
+        taskRecommendations: {
+          ...(prev[selectedEvaluationItem.email]?.taskRecommendations ?? {}),
+          [activeTask]: evaluationForm.recommendation.trim(),
+        },
+        notes: evaluationForm.notes.trim(),
+        recommendation: evaluationForm.recommendation.trim(),
+        updatedAt: nowLabel,
+      },
+    }))
+
+    const previousCompletedTasks = evaluationRecords[selectedEvaluationItem.email]?.completedTasks ?? []
+    const completedTaskSet = new Set(previousCompletedTasks)
+    if (status === 'completed') completedTaskSet.add(activeTask)
+    const remainingCount = Math.max(EVALUATION_TASKS.length - completedTaskSet.size, 0)
+
+    setEvaluationFeedback(
+      status === 'completed'
+        ? `${selectedEvaluationItem.name} completed ${activeTask}. ${remainingCount} pending submission(s) remaining.`
+        : `Draft evaluation saved for ${selectedEvaluationItem.name}.`
+    )
+    handleCloseEvaluation()
+  }
+
+  const handleArchiveApprovalHistory = (entryId) => {
+    setArchivedApprovalHistoryIds((prev) => {
+      const next = new Set(prev)
+      next.add(entryId)
+      return next
+    })
+  }
+
+  const handleDeleteApprovalHistory = (entryId) => {
+    setApprovalHistory((prev) => prev.filter((entry) => entry.id !== entryId))
+    setArchivedApprovalHistoryIds((prev) => {
+      if (!prev.has(entryId)) return prev
+      const next = new Set(prev)
+      next.delete(entryId)
+      return next
+    })
+  }
+
+  const removeTaskFromRecordMap = (sourceMap, task) => {
+    if (!sourceMap || typeof sourceMap !== 'object') return sourceMap
+    const { [task]: _removedTask, ...remaining } = sourceMap
+    return remaining
+  }
+
+  const handleArchiveEvaluationHistory = (entryId) => {
+    setArchivedEvaluationHistoryIds((prev) => {
+      const next = new Set(prev)
+      next.add(entryId)
+      return next
+    })
+  }
+
+  const handleDeleteEvaluationHistory = (entry) => {
+    setEvaluationRecords((prev) => {
+      const existingRecord = prev[entry.email]
+      if (!existingRecord) return prev
+      const nextCompletedTasks = (existingRecord.completedTasks || []).filter((task) => task !== entry.task)
+      const nextRecord = {
+        ...existingRecord,
+        status: nextCompletedTasks.length === 0 && existingRecord.status === 'completed' ? 'in-progress' : existingRecord.status,
+        completedTasks: nextCompletedTasks,
+        taskScores: removeTaskFromRecordMap(existingRecord.taskScores, entry.task),
+        taskScoreBreakdown: removeTaskFromRecordMap(existingRecord.taskScoreBreakdown, entry.task),
+        taskUpdatedAt: removeTaskFromRecordMap(existingRecord.taskUpdatedAt, entry.task),
+        taskNotes: removeTaskFromRecordMap(existingRecord.taskNotes, entry.task),
+        taskRecommendations: removeTaskFromRecordMap(existingRecord.taskRecommendations, entry.task),
+        submissionLinks: removeTaskFromRecordMap(existingRecord.submissionLinks, entry.task),
+      }
+      return {
+        ...prev,
+        [entry.email]: nextRecord,
+      }
+    })
+    setArchivedEvaluationHistoryIds((prev) => {
+      if (!prev.has(entry.id)) return prev
+      const next = new Set(prev)
+      next.delete(entry.id)
+      return next
+    })
+  }
+
   const handleNotificationClick = (notificationId) => {
     setNotifications((prev) => prev.map((item) => (
       item.id === notificationId ? { ...item, read: true } : item
@@ -1932,15 +2489,353 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
   const adminPanelTitle = adminActivePanel === 'manage-users'
     ? 'Users'
+    : adminActivePanel === 'analytics'
+      ? 'Data Analytics'
     : adminActivePanel === 'evaluation'
       ? 'Evaluation'
     : adminActivePanel === 'user-approval'
       ? 'User Approval'
       : 'Dashboard'
+  const activeEvaluationDetailTask = selectedDashboardUser?.detailType === 'evaluation'
+    ? (selectedEvaluationDetailTask || selectedDashboardUser.evaluationTrack)
+    : ''
+  const activeEvaluationTaskDetail = selectedDashboardUser?.detailType === 'evaluation'
+    ? (
+      selectedDashboardUser.evaluationTaskMap?.[activeEvaluationDetailTask]
+      || {
+        status: selectedDashboardUser.evaluationStatus,
+        due: selectedDashboardUser.evaluationDue,
+        submittedAt: selectedDashboardUser.evaluationSubmittedAt,
+        score: selectedDashboardUser.evaluationScore,
+        submissionLink: selectedDashboardUser.evaluationSubmissionLink,
+      }
+    )
+    : null
+  const activeEvaluationModalTask = selectedEvaluationModalTask || selectedEvaluationItem?.track || ''
+  const activeEvaluationModalTaskIndex = EVALUATION_TASKS.indexOf(activeEvaluationModalTask)
+  const activeEvaluationModalDue = activeEvaluationModalTaskIndex >= 0
+    ? evaluationDueTimes[activeEvaluationModalTaskIndex % evaluationDueTimes.length]
+    : (selectedEvaluationItem?.due || '—')
 
   return (
     <main className="dashboard-page admin-dashboard-page">
       <AnimatePresence>
+        {selectedDashboardUser ? (
+          <motion.div
+            className="admin-member-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setSelectedDashboardUser(null)
+              setSelectedEvaluationDetailTask('')
+            }}
+          >
+            <motion.section
+              className="admin-member-modal admin-dashboard-detail-modal"
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-member-modal-close"
+                aria-label="Close user details modal"
+                onClick={() => {
+                  setSelectedDashboardUser(null)
+                  setSelectedEvaluationDetailTask('')
+                }}
+              >
+                <IconX size={18} />
+              </button>
+
+	              <div className="admin-member-modal-head">
+	                <h2>{selectedDashboardUser.name}</h2>
+	                <p>
+	                  {selectedDashboardUser.detailType === 'evaluation'
+	                    ? 'Task and submission details for this evaluation queue item.'
+	                    : 'Complete account and onboarding details for the selected dashboard user.'}
+	                </p>
+	              </div>
+
+		              <div className="admin-dashboard-detail-summary">
+		                <span>{selectedDashboardUser.initials}</span>
+		                <div>
+		                  <strong>{selectedDashboardUser.detailType === 'evaluation' ? 'Evaluation Task' : selectedDashboardUser.role}</strong>
+		                  <small>{selectedDashboardUser.detailType === 'evaluation' ? activeEvaluationDetailTask : selectedDashboardUser.email}</small>
+		                </div>
+		              </div>
+
+		              {selectedDashboardUser.detailType === 'evaluation' ? (
+                    <>
+                      <div className="admin-evaluation-task-bubbles" aria-label="Evaluation task picker">
+                        {selectedDashboardUser.evaluationTasks?.map((task) => (
+                          <button
+                            key={`evaluation-task-bubble-${selectedDashboardUser.email}-${task}`}
+                            type="button"
+                            className={activeEvaluationDetailTask === task ? 'active' : ''}
+                            onClick={() => setSelectedEvaluationDetailTask(task)}
+                          >
+                            {task}
+                          </button>
+                        ))}
+                      </div>
+		                <div className="admin-dashboard-detail-grid">
+		                  <article>
+		                    <small>Task</small>
+		                    <strong>{activeEvaluationDetailTask}</strong>
+		                  </article>
+	                  <article>
+	                    <small>Reviewer</small>
+	                    <strong>{selectedDashboardUser.evaluationReviewer}</strong>
+	                  </article>
+		                  <article>
+		                    <small>Due</small>
+		                    <strong>{activeEvaluationTaskDetail?.due || '—'}</strong>
+		                  </article>
+		                  <article>
+		                    <small>Submission Status</small>
+		                    <strong>{activeEvaluationTaskDetail?.status || '—'}</strong>
+		                  </article>
+	                  <article>
+	                    <small>Pending Submissions</small>
+	                    <strong>{selectedDashboardUser.evaluationPendingCount}</strong>
+	                  </article>
+	                  <article>
+	                    <small>Pending Tasks</small>
+	                    <strong>{selectedDashboardUser.evaluationPendingTasks?.join(', ') || 'None'}</strong>
+	                  </article>
+		                  <article>
+		                    <small>Submitted On</small>
+		                    <strong>{activeEvaluationTaskDetail?.submittedAt || 'Not submitted yet'}</strong>
+		                  </article>
+		                  <article>
+		                    <small>Latest Score</small>
+		                    <strong>{activeEvaluationTaskDetail?.score || 'Not scored'}</strong>
+		                  </article>
+		                  <article>
+		                    <small>Submission Link</small>
+		                    <strong>
+		                      {activeEvaluationTaskDetail?.submissionLink ? (
+		                        <a href={activeEvaluationTaskDetail.submissionLink} target="_blank" rel="noreferrer">
+		                          Open Submission
+		                        </a>
+		                      ) : 'No submission link yet'}
+		                    </strong>
+		                  </article>
+		                </div>
+                    </>
+		              ) : (
+	                <div className="admin-dashboard-detail-grid">
+	                  <article>
+	                    <small>Status</small>
+	                    <strong>{selectedDashboardUser.status === 'active' ? 'Active' : 'Inactive'}</strong>
+	                  </article>
+	                  <article>
+	                    <small>Contact</small>
+	                    <strong>{selectedDashboardUser.contactNumber}</strong>
+	                  </article>
+	                  <article>
+	                    <small>Course</small>
+	                    <strong>{selectedDashboardUser.course}</strong>
+	                  </article>
+	                  <article>
+	                    <small>Hours</small>
+	                    <strong>{selectedDashboardUser.internshipHours}</strong>
+	                  </article>
+	                  <article>
+	                    <small>University</small>
+	                    <strong>{selectedDashboardUser.university}</strong>
+	                  </article>
+	                  <article>
+	                    <small>Date Added</small>
+	                    <strong>{selectedDashboardUser.onboarding}</strong>
+	                  </article>
+	                  <article>
+	                    <small>Username</small>
+	                    <strong>{selectedDashboardUser.username}</strong>
+	                  </article>
+	                  <article>
+	                    <small>Last Activity</small>
+	                    <strong>{selectedDashboardUser.activity}</strong>
+	                  </article>
+	                </div>
+	              )}
+	            </motion.section>
+          </motion.div>
+        ) : null}
+        {selectedEvaluationItem ? (
+          <motion.div
+            className="admin-member-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleCloseEvaluation}
+          >
+            <motion.section
+              className="admin-member-modal admin-evaluation-modal"
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-member-modal-close"
+                aria-label="Close evaluation modal"
+                onClick={handleCloseEvaluation}
+              >
+                <IconX size={18} />
+              </button>
+
+              <div className="admin-member-modal-head">
+                <h2>Evaluate {selectedEvaluationItem.name}</h2>
+                <p>Review the intern queue item, score the current assessment, and save a draft or submit the evaluation.</p>
+              </div>
+
+              <div className="admin-evaluation-modal-summary">
+                <article>
+                  <small>Track</small>
+                  <strong>{activeEvaluationModalTask}</strong>
+                </article>
+                <article>
+                  <small>Reviewer</small>
+                  <strong>{selectedEvaluationItem.reviewer}</strong>
+                </article>
+                <article>
+                  <small>Due</small>
+                  <strong>{activeEvaluationModalDue}</strong>
+                </article>
+                <article>
+                  <small>Overall Score</small>
+                  <strong>{getEvaluationOverallScore(evaluationForm)}/10</strong>
+                </article>
+              </div>
+
+              <div className="admin-evaluation-task-bubbles" aria-label="Evaluation task picker">
+                {EVALUATION_TASKS.map((task) => (
+                  <button
+                    key={`evaluation-modal-task-${selectedEvaluationItem.email}-${task}`}
+                    type="button"
+                    className={activeEvaluationModalTask === task ? 'active' : ''}
+                    onClick={() => handleSelectEvaluationModalTask(task)}
+                  >
+                    {task}
+                  </button>
+                ))}
+              </div>
+
+              <form
+                className="admin-evaluation-form"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  persistEvaluationRecord('completed')
+                }}
+              >
+                <div className="admin-evaluation-score-grid">
+                  <label>
+                    Accuracy
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={evaluationForm.accuracy}
+                      onChange={(event) => handleEvaluationFieldChange('accuracy', event.target.value)}
+                    />
+                    <span>{evaluationForm.accuracy}/10</span>
+                  </label>
+                  <label>
+                    Quality
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={evaluationForm.quality}
+                      onChange={(event) => handleEvaluationFieldChange('quality', event.target.value)}
+                    />
+                    <span>{evaluationForm.quality}/10</span>
+                  </label>
+                  <label>
+                    Progress
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={evaluationForm.progress}
+                      onChange={(event) => handleEvaluationFieldChange('progress', event.target.value)}
+                    />
+                    <span>{evaluationForm.progress}/10</span>
+                  </label>
+                  <label>
+                    Consistency
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={evaluationForm.consistency}
+                      onChange={(event) => handleEvaluationFieldChange('consistency', event.target.value)}
+                    />
+                    <span>{evaluationForm.consistency}/10</span>
+	                  </label>
+	                </div>
+
+	                <label className="admin-evaluation-link-field">
+	                  <span>Submission Link (Optional)</span>
+	                  <input
+	                    type="url"
+	                    value={evaluationForm.submissionLink}
+	                    readOnly
+	                    aria-readonly="true"
+	                    placeholder="No submission link provided yet"
+	                  />
+	                  <small>
+	                    {evaluationForm.submissionLink
+	                      ? 'Submitted link is view-only during evaluation.'
+	                      : 'No link submitted yet.'}
+	                  </small>
+	                </label>
+
+	                <label className="admin-evaluation-textarea">
+	                  Reviewer Notes
+                  <textarea
+                    value={evaluationForm.notes}
+                    onChange={(event) => handleEvaluationFieldChange('notes', event.target.value)}
+                    placeholder="Add performance observations, blockers, or coaching points."
+                  />
+                </label>
+
+                <label className="admin-evaluation-textarea">
+                  Next Recommendation
+                  <textarea
+                    value={evaluationForm.recommendation}
+                    onChange={(event) => handleEvaluationFieldChange('recommendation', event.target.value)}
+                    placeholder="Define the next action, improvement focus, or follow-up task."
+                  />
+                </label>
+
+                <div className="admin-evaluation-form-actions">
+                  <button type="button" onClick={handleCloseEvaluation}>
+                    Cancel
+                  </button>
+                  <button type="button" className="secondary" onClick={() => persistEvaluationRecord('in-progress')}>
+                    <IconDeviceFloppy size={16} />
+                    Save Draft
+                  </button>
+                  <button type="submit" className="primary">
+                    Submit Evaluation
+                  </button>
+                </div>
+              </form>
+            </motion.section>
+          </motion.div>
+        ) : null}
         {isAddMemberModalOpen ? (
           <motion.div
             className="admin-member-modal-overlay"
@@ -2200,21 +3095,47 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
               <IconLayoutDashboard size={18} />
               <span className="admin-dashboard-nav-label">Dashboard</span>
             </button>
-            <button type="button">
+            <button
+              type="button"
+              className={adminActivePanel === 'analytics' ? 'active' : ''}
+              onClick={() => setAdminActivePanel('analytics')}
+            >
               <IconReport size={18} />
               <span className="admin-dashboard-nav-label">Data Analytics</span>
             </button>
             <button
               type="button"
-              className={adminActivePanel === 'evaluation' ? 'active' : ''}
-              onClick={() => setAdminActivePanel('evaluation')}
+              className={`admin-dashboard-nav-parent ${adminActivePanel === 'evaluation' ? 'active' : ''}`}
+              onClick={() => {
+                setAdminActivePanel('evaluation')
+                setEvaluationSubtab('queue')
+              }}
             >
               <IconBook2 size={18} />
               <span className="admin-dashboard-nav-label">Evaluation</span>
+              <span className="admin-dashboard-nav-arrow" aria-hidden="true">&#8250;</span>
             </button>
+            {adminActivePanel === 'evaluation' ? (
+              <div className="admin-dashboard-subnav" aria-label="Evaluation sections">
+                <button
+                  type="button"
+                  className={evaluationSubtab === 'queue' ? 'active' : ''}
+                  onClick={() => setEvaluationSubtab('queue')}
+                >
+                  <span className="admin-dashboard-nav-label">Evaluation Queue</span>
+                </button>
+                <button
+                  type="button"
+                  className={evaluationSubtab === 'history' ? 'active' : ''}
+                  onClick={() => setEvaluationSubtab('history')}
+                >
+                  <span className="admin-dashboard-nav-label">Evaluation History</span>
+                </button>
+              </div>
+            ) : null}
             <button
               type="button"
-              className={adminActivePanel === 'user-approval' ? 'active' : ''}
+              className={`admin-dashboard-nav-parent ${adminActivePanel === 'user-approval' ? 'active' : ''}`}
               onClick={() => {
                 setAdminActivePanel('user-approval')
                 setApprovalSubtab('pending')
@@ -2222,6 +3143,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
             >
               <IconUserCheck size={18} />
               <span className="admin-dashboard-nav-label">User Approval</span>
+              <span className="admin-dashboard-nav-arrow" aria-hidden="true">&#8250;</span>
             </button>
             {adminActivePanel === 'user-approval' ? (
               <div className="admin-dashboard-subnav" aria-label="User approval sections">
@@ -2415,7 +3337,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
           {adminActivePanel === 'manage-users' ? (
             <>
-              <section className="admin-manage-hero">
+              <section className="admin-manage-hero admin-evaluation-hero">
                 <div>
                   <h2>User Management</h2>
                   <p>Configure team roles, permissions and security settings</p>
@@ -2567,7 +3489,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         {page}
                       </button>
                     ))}
-                    {manageTotalPages > 3 ? <span className="admin-dashboard-page-ellipsis">...</span> : null}
+                    {visibleManagePages[visibleManagePages.length - 1] < manageTotalPages ? (
+                      <span className="admin-dashboard-page-ellipsis">...</span>
+                    ) : null}
                     <button
                       type="button"
                       className="admin-dashboard-page-btn arrow"
@@ -2581,14 +3505,247 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 </div>
               </section>
             </>
-          ) : adminActivePanel === 'evaluation' ? (
+          ) : adminActivePanel === 'analytics' ? (
             <>
-              <section className="admin-manage-hero">
+              <section className="admin-manage-hero admin-analytics-hero">
                 <div>
-                  <h2>Evaluation Center</h2>
-                  <p>Monitor intern assessments, progress checks, and upcoming review assignments.</p>
+                  <h2>Data Analytics</h2>
+                  <p>Monitor user-based performance, output quality, and delivery consistency across the active roster.</p>
                 </div>
               </section>
+
+              <section className="admin-manage-stats admin-analytics-stats">
+                {analyticsSummary.map((item) => (
+                  <article key={item.label} className="admin-dashboard-stat-card admin-manage-stat">
+                    <div className="admin-dashboard-stat-head">
+                      <span className="admin-dashboard-stat-icon">
+                        {item.icon}
+                      </span>
+                      <b className="positive">{item.note}</b>
+                    </div>
+                    <p>{item.label}</p>
+                    <h3>{item.value}</h3>
+                  </article>
+                ))}
+              </section>
+
+              <section className="admin-dashboard-data-grid admin-analytics-grid">
+                <section className="admin-dashboard-table-card admin-analytics-card">
+                  <div className="admin-dashboard-table-head">
+                    <div>
+                      <h2>User Performance Overview</h2>
+                      <p>Top-performing users ranked by current quality and throughput metrics.</p>
+                    </div>
+                  <div className="admin-dashboard-table-tools">
+                    <div
+                      className="admin-dashboard-search-trigger"
+                      onMouseEnter={() => setIsAnalyticsSearchOpen(true)}
+                      onMouseLeave={() => {
+                        if (!hasAnalyticsSearchValue) setIsAnalyticsSearchOpen(false)
+                      }}
+                    >
+                      <label className={`admin-dashboard-table-search ${isAnalyticsSearchVisible ? 'is-open' : ''}`}>
+                        <IconSearch size={18} />
+                        <input
+                          ref={analyticsSearchInputRef}
+                          type="text"
+                          placeholder="Search performance..."
+                          aria-label="Search user performance"
+                          value={analyticsSearchQuery}
+                          onChange={(event) => setAnalyticsSearchQuery(event.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="admin-dashboard-icon-btn"
+                        aria-label="Search user performance"
+                        aria-pressed={isAnalyticsSearchVisible}
+                        onClick={() => {
+                          if (hasAnalyticsSearchValue) return
+                          setIsAnalyticsSearchOpen((prev) => !prev)
+                        }}
+                      >
+                        <IconSearch size={18} />
+                      </button>
+                    </div>
+                      <div className="admin-dashboard-filter-wrap" ref={analyticsFilterRef}>
+                        <button
+                          type="button"
+                          className="admin-dashboard-icon-btn"
+                          aria-label="Sort user performance"
+                          aria-expanded={isAnalyticsFilterOpen}
+                          onClick={() => setIsAnalyticsFilterOpen((prev) => !prev)}
+                        >
+                          <IconFilter size={18} />
+                        </button>
+                        {isAnalyticsFilterOpen ? (
+                          <div className="admin-dashboard-filter-menu" role="menu" aria-label="User performance sort options">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={analyticsSortMode === 'all' ? 'active' : ''}
+                              onClick={() => {
+                                setAnalyticsSortMode('all')
+                                setIsAnalyticsFilterOpen(false)
+                              }}
+                            >
+                              All
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={analyticsSortMode === 'highest' ? 'active' : ''}
+                              onClick={() => {
+                                setAnalyticsSortMode('highest')
+                                setIsAnalyticsFilterOpen(false)
+                              }}
+                            >
+                              Highest Score
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={analyticsSortMode === 'lowest' ? 'active' : ''}
+                              onClick={() => {
+                                setAnalyticsSortMode('lowest')
+                                setIsAnalyticsFilterOpen(false)
+                              }}
+                            >
+                              Lowest Score
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={analyticsSortMode === 'az' ? 'active' : ''}
+                              onClick={() => {
+                                setAnalyticsSortMode('az')
+                                setIsAnalyticsFilterOpen(false)
+                              }}
+                            >
+                              A-Z
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="admin-analytics-list">
+                    {pagedAnalyticsBreakdown.length > 0 ? pagedAnalyticsBreakdown.map((user) => (
+                      <article key={user.id} className="admin-analytics-item">
+                        <div className="admin-analytics-item-main">
+                          <div className="admin-analytics-item-user">
+                            <span>{user.name.split(' ').map((part) => part.charAt(0)).slice(0, 2).join('').toUpperCase()}</span>
+                            <div>
+                              <strong>{user.name}</strong>
+                              <small>{user.role}</small>
+                            </div>
+                          </div>
+                          <p className="admin-analytics-overall-score">
+                            Overall Score <b>{user.averageScore}%</b>
+                          </p>
+                        </div>
+                        <div className="admin-analytics-metrics">
+                          <article className="admin-analytics-metric-card">
+                            <small>Accuracy</small>
+                            <strong>{user.accuracy}%</strong>
+                          </article>
+                          <article className="admin-analytics-metric-card">
+                            <small>Productivity</small>
+                            <strong>{user.productivity}%</strong>
+                          </article>
+                          <article className="admin-analytics-metric-card">
+                            <small>Consistency</small>
+                            <strong>{user.consistency}%</strong>
+                          </article>
+                          <article className="admin-analytics-metric-card highlight">
+                            <small>Tasks Completed</small>
+                            <strong>{user.completedTasks}</strong>
+                          </article>
+                        </div>
+                      </article>
+                    )) : (
+                      <div className="admin-dashboard-table-empty admin-analytics-empty">
+                        {normalizedAnalyticsSearch
+                          ? 'No users matched your performance filters.'
+                          : 'No user performance data is available right now.'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="admin-dashboard-pagination">
+                    <p className="admin-dashboard-pagination-summary">
+                      Showing <b>{analyticsTotalResults === 0 ? 0 : analyticsStartIndex + 1}</b> to <b>{analyticsEndIndex}</b> of <b>{analyticsTotalResults}</b> results
+                    </p>
+                    <div className="admin-dashboard-pagination-controls" aria-label="Analytics performance pagination">
+                      <button
+                        type="button"
+                        className="admin-dashboard-page-btn arrow"
+                        aria-label="Previous analytics page"
+                        disabled={analyticsActivePage === 1}
+                        onClick={() => setAnalyticsCurrentPage((prev) => Math.max(1, prev - 1))}
+                      >
+                        &#8249;
+                      </button>
+                      {visibleAnalyticsPages.map((page) => (
+                        <button
+                          key={`analytics-page-${page}`}
+                          type="button"
+                          className={`admin-dashboard-page-btn ${analyticsActivePage === page ? 'active' : ''}`}
+                          onClick={() => setAnalyticsCurrentPage(page)}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                      {visibleAnalyticsPages[visibleAnalyticsPages.length - 1] < analyticsTotalPages ? <span className="admin-dashboard-page-ellipsis">...</span> : null}
+                      <button
+                        type="button"
+                        className="admin-dashboard-page-btn arrow"
+                        aria-label="Next analytics page"
+                        disabled={analyticsActivePage === analyticsTotalPages}
+                        onClick={() => setAnalyticsCurrentPage((prev) => Math.min(analyticsTotalPages, prev + 1))}
+                      >
+                        &#8250;
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <aside className="admin-dashboard-top-performers admin-analytics-sidebar">
+                  <div className="admin-dashboard-top-performers-head">
+                    <h3>Performance Leaders</h3>
+                    <small>User-based leaderboard</small>
+                  </div>
+                  <div className="admin-dashboard-top-performers-list">
+                    {analyticsTopUsers.map((member, index) => (
+                      <article key={`analytics-top-${member.email}`} className="admin-dashboard-top-performer-item admin-analytics-leader">
+                        <div className="admin-dashboard-top-performer-user">
+                          <span>{index + 1}</span>
+                          <div>
+                            <strong>{member.name}</strong>
+                            <small>{member.role}</small>
+                          </div>
+                        </div>
+                        <div className="admin-dashboard-top-performer-score">
+                          <b>{member.accuracy}%</b>
+                          <small>{member.completedTasks} tasks</small>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </aside>
+              </section>
+            </>
+	          ) : adminActivePanel === 'evaluation' ? (
+	            <>
+	              <section className="admin-manage-hero admin-evaluation-hero">
+	                <div>
+	                  <h2>{evaluationSubtab === 'history' ? 'Evaluation History' : 'Evaluation Center'}</h2>
+	                  <p>
+	                    {evaluationSubtab === 'history'
+	                      ? 'Review completed evaluations and previously submitted assessment records.'
+	                      : 'Monitor intern assessments, progress checks, and upcoming review assignments.'}
+	                  </p>
+	                </div>
+	              </section>
 
               <section className="admin-manage-stats admin-evaluation-stats">
                 {evaluationSummary.map((item) => (
@@ -2606,66 +3763,300 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
               </section>
 
               <section className="admin-dashboard-data-grid admin-evaluation-grid">
-                <section className="admin-dashboard-table-card admin-evaluation-card">
-                  <div className="admin-dashboard-table-head">
-                    <div>
-                      <h2>Evaluation Queue</h2>
-                      <p>Intern evaluations currently waiting for review and scoring.</p>
-                    </div>
-                    <div
-                      className="admin-dashboard-table-tools"
-                      onMouseEnter={() => setIsEvaluationSearchOpen(true)}
-                      onMouseLeave={() => {
-                        if (!hasEvaluationSearchValue) setIsEvaluationSearchOpen(false)
-                      }}
-                    >
-                      <label className={`admin-dashboard-table-search ${isEvaluationSearchVisible ? 'is-open' : ''}`}>
-                        <IconSearch size={18} />
-                        <input
-                          ref={evaluationSearchInputRef}
-                          type="text"
-                          placeholder="Search evaluations..."
-                          aria-label="Search evaluations"
-                          value={evaluationSearchQuery}
-                          onChange={(event) => setEvaluationSearchQuery(event.target.value)}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        className="admin-dashboard-icon-btn"
-                        aria-label="Search evaluations"
-                        aria-pressed={isEvaluationSearchVisible}
-                        onClick={() => {
-                          if (hasEvaluationSearchValue) return
-                          setIsEvaluationSearchOpen((prev) => !prev)
-                        }}
-                      >
-                        <IconSearch size={18} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="admin-evaluation-list">
-                    {filteredEvaluationQueue.length > 0 ? filteredEvaluationQueue.map((item) => (
-                      <article key={item.id} className="admin-evaluation-item">
-                        <div className="admin-evaluation-item-main">
-                          <strong>{item.name}</strong>
-                          <p>{item.track}</p>
+	                <section className="admin-dashboard-table-card admin-evaluation-card">
+	                  <div className="admin-dashboard-table-head">
+	                    <div>
+	                      <h2>{evaluationSubtab === 'history' ? 'Evaluation History' : 'Evaluation Queue'}</h2>
+	                      <p>
+	                        {evaluationSubtab === 'history'
+	                          ? 'Completed evaluations with task-level records and submitted outcomes.'
+	                          : 'Intern evaluations awaiting review and scoring.'}
+	                      </p>
+	                    </div>
+	                    {evaluationSubtab === 'queue' ? (
+	                      <div className="admin-dashboard-table-tools">
+	                        <div
+	                          className="admin-dashboard-search-trigger"
+	                          onMouseEnter={() => setIsEvaluationSearchOpen(true)}
+	                          onMouseLeave={() => {
+	                            if (!hasEvaluationSearchValue) setIsEvaluationSearchOpen(false)
+	                          }}
+	                        >
+	                          <label className={`admin-dashboard-table-search ${isEvaluationSearchVisible ? 'is-open' : ''}`}>
+	                            <IconSearch size={18} />
+	                            <input
+	                              ref={evaluationSearchInputRef}
+	                              type="text"
+	                              placeholder="Search evaluations..."
+	                              aria-label="Search evaluations"
+	                              value={evaluationSearchQuery}
+	                              onChange={(event) => setEvaluationSearchQuery(event.target.value)}
+	                            />
+	                          </label>
+	                          <button
+	                            type="button"
+	                            className="admin-dashboard-icon-btn"
+	                            aria-label="Search evaluations"
+	                            aria-pressed={isEvaluationSearchVisible}
+	                            onClick={() => {
+	                              if (hasEvaluationSearchValue) return
+	                              setIsEvaluationSearchOpen((prev) => !prev)
+	                            }}
+	                          >
+	                            <IconSearch size={18} />
+	                          </button>
+	                        </div>
+	                      </div>
+	                    ) : (
+                        <div className="admin-dashboard-table-tools">
+                          <div
+                            className="admin-dashboard-search-trigger"
+                            onMouseEnter={() => setIsEvaluationHistorySearchOpen(true)}
+                            onMouseLeave={() => {
+                              if (!hasEvaluationHistorySearchValue) setIsEvaluationHistorySearchOpen(false)
+                            }}
+                          >
+                            <label className={`admin-dashboard-table-search ${isEvaluationHistorySearchVisible ? 'is-open' : ''}`}>
+                              <IconSearch size={18} />
+                              <input
+                                ref={evaluationHistorySearchInputRef}
+                                type="text"
+                                placeholder="Search evaluation history..."
+                                aria-label="Search evaluation history"
+                                value={evaluationHistorySearchQuery}
+                                onChange={(event) => setEvaluationHistorySearchQuery(event.target.value)}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              className="admin-dashboard-icon-btn"
+                              aria-label="Search evaluation history"
+                              aria-pressed={isEvaluationHistorySearchVisible}
+                              onClick={() => {
+                                if (hasEvaluationHistorySearchValue) return
+                                setIsEvaluationHistorySearchOpen((prev) => !prev)
+                              }}
+                            >
+                              <IconSearch size={18} />
+                            </button>
+                          </div>
+                          <div className="admin-dashboard-filter-wrap" ref={evaluationHistoryFilterRef}>
+                            <button
+                              type="button"
+                              className="admin-dashboard-icon-btn"
+                              aria-label="Filter evaluation history by year"
+                              aria-expanded={isEvaluationHistoryFilterOpen}
+                              onClick={() => setIsEvaluationHistoryFilterOpen((prev) => !prev)}
+                            >
+                              <IconFilter size={18} />
+                            </button>
+                            {isEvaluationHistoryFilterOpen ? (
+                              <div className="admin-dashboard-filter-menu" role="menu" aria-label="Evaluation history filters">
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className={evaluationHistorySortMode === 'all' ? 'active' : ''}
+                                  onClick={() => {
+                                    setEvaluationHistorySortMode('all')
+                                    setEvaluationHistoryYearFilter('all')
+                                    setIsEvaluationHistoryFilterOpen(false)
+                                  }}
+                                >
+                                  All
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className={evaluationHistorySortMode === 'az' ? 'active' : ''}
+                                  onClick={() => {
+                                    setEvaluationHistorySortMode('az')
+                                    setEvaluationHistoryYearFilter('all')
+                                    setIsEvaluationHistoryFilterOpen(false)
+                                  }}
+                                >
+                                  A-Z
+                                </button>
+                                {evaluationHistoryYears.map((year) => (
+                                  <button
+                                    key={`evaluation-history-year-${year}`}
+                                    type="button"
+                                    role="menuitem"
+                                    className={evaluationHistoryYearFilter === year ? 'active' : ''}
+                                    onClick={() => {
+                                      setEvaluationHistoryYearFilter(year)
+                                      setIsEvaluationHistoryFilterOpen(false)
+                                    }}
+                                  >
+                                    {year}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
-                        <div className="admin-evaluation-item-meta">
-                          <span className={`admin-evaluation-status ${item.status}`}>{item.status}</span>
-                          <small>Reviewer: {item.reviewer}</small>
-                          <small>Due: {item.due}</small>
-                        </div>
-                      </article>
-                    )) : (
-                      <div className="admin-dashboard-table-empty">
-                        {normalizedEvaluationSearch
-                          ? 'No evaluations matched your search.'
-                          : 'No intern evaluations are queued right now.'}
-                      </div>
-                    )}
-                  </div>
-                </section>
+                      )}
+	                  </div>
+	                  {evaluationSubtab === 'queue' ? (
+	                    <>
+	                      {evaluationFeedback ? (
+	                        <div className="admin-evaluation-feedback">{evaluationFeedback}</div>
+	                      ) : null}
+	                      <div className="admin-evaluation-list">
+	                        {pagedEvaluationQueue.length > 0 ? pagedEvaluationQueue.map((item) => (
+	                          <article key={item.id} className="admin-evaluation-item">
+	                            <div className="admin-evaluation-item-main">
+	                              <strong>{item.name}</strong>
+	                              <p>Next task: {item.track}</p>
+	                              <small>Pending submissions: {item.pendingCount}</small>
+	                              {item.score ? <small>Latest score: {item.score}/10</small> : null}
+	                            </div>
+	                            <div className="admin-evaluation-item-actions">
+	                              <button
+	                                type="button"
+	                                className="secondary"
+	                                onClick={() => handleOpenEvaluationDetails(item)}
+	                              >
+	                                View Full Details
+	                              </button>
+	                              <button type="button" onClick={() => handleOpenEvaluation(item)}>
+	                                {item.status === 'in-progress' ? 'Continue Evaluation' : 'Start Evaluation'}
+	                              </button>
+	                            </div>
+	                          </article>
+	                        )) : (
+	                          <div className="admin-dashboard-table-empty">
+	                            {normalizedEvaluationSearch
+	                              ? 'No evaluations matched your search.'
+	                              : 'No intern evaluations are queued right now.'}
+	                          </div>
+	                        )}
+	                      </div>
+	                      <div className="admin-dashboard-pagination admin-evaluation-pagination">
+	                        <p className="admin-dashboard-pagination-summary">
+	                          Showing <b>{evaluationTotalResults === 0 ? 0 : evaluationStartIndex + 1}</b> to <b>{evaluationEndIndex}</b> of <b>{evaluationTotalResults}</b> results
+	                        </p>
+	                        <div className="admin-dashboard-pagination-controls admin-evaluation-pagination-controls" aria-label="Evaluation queue pagination">
+	                          <button
+	                            type="button"
+	                            className="admin-dashboard-page-btn admin-evaluation-page-btn arrow"
+	                            aria-label="Previous evaluation page"
+	                            disabled={evaluationActivePage === 1}
+	                            onClick={() => setEvaluationCurrentPage((prev) => Math.max(1, prev - 1))}
+	                          >
+	                            &#8249;
+	                          </button>
+	                          {visibleEvaluationPages.map((page) => (
+	                            <button
+	                              key={`evaluation-page-${page}`}
+	                              type="button"
+	                              className={`admin-dashboard-page-btn admin-evaluation-page-btn ${evaluationActivePage === page ? 'active' : ''}`}
+	                              onClick={() => setEvaluationCurrentPage(page)}
+	                            >
+	                              {page}
+	                            </button>
+	                          ))}
+	                          {visibleEvaluationPages[visibleEvaluationPages.length - 1] < evaluationTotalPages ? (
+	                            <span className="admin-dashboard-page-ellipsis admin-evaluation-page-ellipsis">...</span>
+	                          ) : null}
+	                          <button
+	                            type="button"
+	                            className="admin-dashboard-page-btn admin-evaluation-page-btn arrow"
+	                            aria-label="Next evaluation page"
+	                            disabled={evaluationActivePage === evaluationTotalPages}
+	                            onClick={() => setEvaluationCurrentPage((prev) => Math.min(evaluationTotalPages, prev + 1))}
+	                          >
+	                            &#8250;
+	                          </button>
+	                        </div>
+	                      </div>
+	                    </>
+	                  ) : (
+	                    <>
+	                      <div className="admin-evaluation-list">
+	                        {pagedEvaluationHistory.length > 0 ? pagedEvaluationHistory.map((entry) => (
+	                          <article key={entry.id} className="admin-evaluation-item admin-evaluation-history-item">
+	                            <div className="admin-evaluation-item-main">
+	                              <strong>{entry.name}</strong>
+	                              <p>Task: {entry.task}</p>
+	                              <small>Submitted: {entry.submittedAt}</small>
+	                              {entry.score !== null ? <small>Score: {entry.score}/10</small> : null}
+	                            </div>
+	                            <div className="admin-evaluation-item-actions">
+	                              <span className="admin-evaluation-status completed">completed</span>
+	                              <button
+	                                type="button"
+	                                className="secondary"
+	                                onClick={() => handleOpenEvaluationHistoryDetails(entry)}
+	                              >
+	                                View Full Details
+	                              </button>
+                                <div className="admin-history-action-group" aria-label="Evaluation history actions">
+	                                <button
+	                                  type="button"
+	                                  className="secondary admin-history-action-btn"
+	                                  onClick={() => handleArchiveEvaluationHistory(entry.id)}
+	                                >
+	                                  Archive
+	                                </button>
+	                                <button
+	                                  type="button"
+	                                  className="secondary admin-history-action-btn danger"
+	                                  onClick={() => handleDeleteEvaluationHistory(entry)}
+	                                >
+	                                  Delete
+	                                </button>
+	                              </div>
+	                            </div>
+	                          </article>
+	                        )) : (
+	                          <div className="admin-dashboard-table-empty">
+	                            {normalizedEvaluationHistorySearch || evaluationHistoryYearFilter !== 'all'
+	                              ? 'No evaluation history matched your filters.'
+	                              : 'No completed evaluations yet.'}
+	                          </div>
+	                        )}
+	                      </div>
+	                      <div className="admin-dashboard-pagination admin-evaluation-pagination">
+	                        <p className="admin-dashboard-pagination-summary">
+	                          Showing <b>{evaluationHistoryTotalResults === 0 ? 0 : evaluationHistoryStartIndex + 1}</b> to <b>{evaluationHistoryEndIndex}</b> of <b>{evaluationHistoryTotalResults}</b> results
+	                        </p>
+	                        <div className="admin-dashboard-pagination-controls admin-evaluation-pagination-controls" aria-label="Evaluation history pagination">
+	                          <button
+	                            type="button"
+	                            className="admin-dashboard-page-btn admin-evaluation-page-btn arrow"
+	                            aria-label="Previous evaluation history page"
+	                            disabled={evaluationHistoryActivePage === 1}
+	                            onClick={() => setEvaluationHistoryCurrentPage((prev) => Math.max(1, prev - 1))}
+	                          >
+	                            &#8249;
+	                          </button>
+	                          {visibleEvaluationHistoryPages.map((page) => (
+	                            <button
+	                              key={`evaluation-history-page-${page}`}
+	                              type="button"
+	                              className={`admin-dashboard-page-btn admin-evaluation-page-btn ${evaluationHistoryActivePage === page ? 'active' : ''}`}
+	                              onClick={() => setEvaluationHistoryCurrentPage(page)}
+	                            >
+	                              {page}
+	                            </button>
+	                          ))}
+	                          {visibleEvaluationHistoryPages[visibleEvaluationHistoryPages.length - 1] < evaluationHistoryTotalPages ? (
+	                            <span className="admin-dashboard-page-ellipsis admin-evaluation-page-ellipsis">...</span>
+	                          ) : null}
+	                          <button
+	                            type="button"
+	                            className="admin-dashboard-page-btn admin-evaluation-page-btn arrow"
+	                            aria-label="Next evaluation history page"
+	                            disabled={evaluationHistoryActivePage === evaluationHistoryTotalPages}
+	                            onClick={() => setEvaluationHistoryCurrentPage((prev) => Math.min(evaluationHistoryTotalPages, prev + 1))}
+	                          >
+	                            &#8250;
+	                          </button>
+	                        </div>
+	                      </div>
+	                    </>
+	                  )}
+	                </section>
 
                 <aside className="admin-dashboard-top-performers admin-evaluation-rubric">
                   <div className="admin-dashboard-top-performers-head">
@@ -2685,7 +4076,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
             </>
           ) : adminActivePanel === 'user-approval' ? (
             <>
-              <section className="admin-manage-hero">
+              <section className="admin-manage-hero admin-approval-hero">
                 <div>
                   <h2>{approvalSubtab === 'history' ? 'Approval History' : 'User Approval Queue'}</h2>
                   <p>
@@ -2737,13 +4128,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <h2>Pending Approvals</h2>
                     <p>Accounts waiting for admin approval</p>
                   </div>
-                  <div
-                    className="admin-dashboard-table-tools"
-                    onMouseEnter={() => setIsApprovalSearchOpen(true)}
-                    onMouseLeave={() => {
-                      if (!hasApprovalSearchValue) setIsApprovalSearchOpen(false)
-                    }}
-                  >
+                  <div className="admin-dashboard-table-tools">
+                    <div
+                      className="admin-dashboard-search-trigger"
+                      onMouseEnter={() => setIsApprovalSearchOpen(true)}
+                      onMouseLeave={() => {
+                        if (!hasApprovalSearchValue) setIsApprovalSearchOpen(false)
+                      }}
+                    >
                     <label className={`admin-dashboard-table-search ${isApprovalSearchVisible ? 'is-open' : ''}`}>
                       <IconSearch size={18} />
                       <input
@@ -2763,15 +4155,16 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                       onClick={() => {
                         if (hasApprovalSearchValue) return
                         setIsApprovalSearchOpen((prev) => !prev)
-                      }}
-                    >
-                      <IconSearch size={18} />
-                    </button>
+                        }}
+                      >
+                        <IconSearch size={18} />
+                      </button>
+                    </div>
                     <div className="admin-dashboard-filter-wrap" ref={approvalFilterRef}>
                       <button
                         type="button"
                         className="admin-dashboard-icon-btn"
-                        aria-label="Filter pending approvals by year"
+                        aria-label="Filter pending approvals"
                         aria-expanded={isApprovalFilterOpen}
                         onClick={() => setIsApprovalFilterOpen((prev) => !prev)}
                       >
@@ -2782,28 +4175,85 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           <button
                             type="button"
                             role="menuitem"
-                            className={approvalYearFilter === 'all' ? 'active' : ''}
+                            className={approvalSortMode === 'all' ? 'active' : ''}
                             onClick={() => {
+                              setApprovalSortMode('all')
                               setApprovalYearFilter('all')
+                              setApprovalRoleFilter('all')
                               setIsApprovalFilterOpen(false)
                             }}
                           >
-                            All Years
+                            By Date
                           </button>
-                          {approvalYears.map((year) => (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className={approvalSortMode === 'az' ? 'active' : ''}
+                            onClick={() => {
+                              setApprovalSortMode('az')
+                              setApprovalYearFilter('all')
+                              setApprovalRoleFilter('all')
+                              setIsApprovalFilterOpen(false)
+                            }}
+                          >
+                            By A-Z
+                          </button>
+                          <div className={`admin-dashboard-filter-item ${approvalRoleFilter !== 'all' ? 'active' : ''}`}>
                             <button
-                              key={year}
                               type="button"
                               role="menuitem"
-                              className={approvalYearFilter === year ? 'active' : ''}
-                              onClick={() => {
-                                setApprovalYearFilter(year)
-                                setIsApprovalFilterOpen(false)
-                              }}
+                              className="admin-dashboard-filter-parent"
+                              aria-haspopup="menu"
                             >
-                              {year}
+                              Role
                             </button>
-                          ))}
+                            <div className="admin-dashboard-filter-submenu" role="menu" aria-label="Filter pending approvals by role">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={approvalRoleFilter === 'all' ? 'active' : ''}
+                                onClick={() => {
+                                  setApprovalRoleFilter('all')
+                                  setIsApprovalFilterOpen(false)
+                                }}
+                              >
+                                All Roles
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={approvalRoleFilter === 'admin' ? 'active' : ''}
+                                onClick={() => {
+                                  setApprovalRoleFilter('admin')
+                                  setIsApprovalFilterOpen(false)
+                                }}
+                              >
+                                Admin
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={approvalRoleFilter === 'employee' ? 'active' : ''}
+                                onClick={() => {
+                                  setApprovalRoleFilter('employee')
+                                  setIsApprovalFilterOpen(false)
+                                }}
+                              >
+                                Employee
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={approvalRoleFilter === 'intern' ? 'active' : ''}
+                                onClick={() => {
+                                  setApprovalRoleFilter('intern')
+                                  setIsApprovalFilterOpen(false)
+                                }}
+                              >
+                                Intern
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -2820,7 +4270,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 </div>
 
                 <div className="admin-dashboard-table-body">
-                  {filteredApprovalQueue.length > 0 ? filteredApprovalQueue.map((member) => (
+                  {pagedApprovalQueue.length > 0 ? pagedApprovalQueue.map((member) => (
                     <article key={`approval-${member.email}`} className="admin-approval-table-grid admin-manage-user-row admin-approval-user-row">
                       <div className="admin-dashboard-user-cell">
                         <span>{member.initials}</span>
@@ -2858,6 +4308,42 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     </div>
                   )}
                 </div>
+                <div className="admin-dashboard-pagination">
+                  <p className="admin-dashboard-pagination-summary">
+                    Showing <b>{approvalTotalResults === 0 ? 0 : approvalStartIndex + 1}</b> to <b>{approvalEndIndex}</b> of <b>{approvalTotalResults}</b> results
+                  </p>
+                  <div className="admin-dashboard-pagination-controls" aria-label="Pending approvals pagination">
+                    <button
+                      type="button"
+                      className="admin-dashboard-page-btn arrow"
+                      aria-label="Previous pending approvals page"
+                      disabled={approvalActivePage === 1}
+                      onClick={() => setApprovalCurrentPage((prev) => Math.max(1, prev - 1))}
+                    >
+                      &#8249;
+                    </button>
+                    {visibleApprovalPages.map((page) => (
+                      <button
+                        key={`approval-page-${page}`}
+                        type="button"
+                        className={`admin-dashboard-page-btn ${approvalActivePage === page ? 'active' : ''}`}
+                        onClick={() => setApprovalCurrentPage(page)}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    {visibleApprovalPages[visibleApprovalPages.length - 1] < approvalTotalPages ? <span className="admin-dashboard-page-ellipsis">...</span> : null}
+                    <button
+                      type="button"
+                      className="admin-dashboard-page-btn arrow"
+                      aria-label="Next pending approvals page"
+                      disabled={approvalActivePage === approvalTotalPages}
+                      onClick={() => setApprovalCurrentPage((prev) => Math.min(approvalTotalPages, prev + 1))}
+                    >
+                      &#8250;
+                    </button>
+                  </div>
+                </div>
                   </>
                 ) : (
                   <>
@@ -2866,13 +4352,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <h2>User Approval History</h2>
                     <p>Recently accepted and declined requests</p>
                   </div>
-                  <div
-                    className="admin-dashboard-table-tools"
-                    onMouseEnter={() => setIsApprovalHistorySearchOpen(true)}
-                    onMouseLeave={() => {
-                      if (!hasApprovalHistorySearchValue) setIsApprovalHistorySearchOpen(false)
-                    }}
-                  >
+                  <div className="admin-dashboard-table-tools">
+                    <div
+                      className="admin-dashboard-search-trigger"
+                      onMouseEnter={() => setIsApprovalHistorySearchOpen(true)}
+                      onMouseLeave={() => {
+                        if (!hasApprovalHistorySearchValue) setIsApprovalHistorySearchOpen(false)
+                      }}
+                    >
                     <label className={`admin-dashboard-table-search ${isApprovalHistorySearchVisible ? 'is-open' : ''}`}>
                       <IconSearch size={18} />
                       <input
@@ -2892,15 +4379,16 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                       onClick={() => {
                         if (hasApprovalHistorySearchValue) return
                         setIsApprovalHistorySearchOpen((prev) => !prev)
-                      }}
-                    >
-                      <IconSearch size={18} />
-                    </button>
+                        }}
+                      >
+                        <IconSearch size={18} />
+                      </button>
+                    </div>
                     <div className="admin-dashboard-filter-wrap" ref={approvalHistoryFilterRef}>
                       <button
                         type="button"
                         className="admin-dashboard-icon-btn"
-                        aria-label="Filter approval history by year"
+                        aria-label="Filter approval history"
                         aria-expanded={isApprovalHistoryFilterOpen}
                         onClick={() => setIsApprovalHistoryFilterOpen((prev) => !prev)}
                       >
@@ -2911,28 +4399,85 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           <button
                             type="button"
                             role="menuitem"
-                            className={approvalHistoryYearFilter === 'all' ? 'active' : ''}
+                            className={approvalHistorySortMode === 'all' ? 'active' : ''}
                             onClick={() => {
+                              setApprovalHistorySortMode('all')
                               setApprovalHistoryYearFilter('all')
+                              setApprovalHistoryRoleFilter('all')
                               setIsApprovalHistoryFilterOpen(false)
                             }}
                           >
-                            All Years
+                            By Date
                           </button>
-                          {approvalHistoryYears.map((year) => (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className={approvalHistorySortMode === 'az' ? 'active' : ''}
+                            onClick={() => {
+                              setApprovalHistorySortMode('az')
+                              setApprovalHistoryYearFilter('all')
+                              setApprovalHistoryRoleFilter('all')
+                              setIsApprovalHistoryFilterOpen(false)
+                            }}
+                          >
+                            By A-Z
+                          </button>
+                          <div className={`admin-dashboard-filter-item ${approvalHistoryRoleFilter !== 'all' ? 'active' : ''}`}>
                             <button
-                              key={year}
                               type="button"
                               role="menuitem"
-                              className={approvalHistoryYearFilter === year ? 'active' : ''}
-                              onClick={() => {
-                                setApprovalHistoryYearFilter(year)
-                                setIsApprovalHistoryFilterOpen(false)
-                              }}
+                              className="admin-dashboard-filter-parent"
+                              aria-haspopup="menu"
                             >
-                              {year}
+                              Role
                             </button>
-                          ))}
+                            <div className="admin-dashboard-filter-submenu" role="menu" aria-label="Filter approval history by role">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={approvalHistoryRoleFilter === 'all' ? 'active' : ''}
+                                onClick={() => {
+                                  setApprovalHistoryRoleFilter('all')
+                                  setIsApprovalHistoryFilterOpen(false)
+                                }}
+                              >
+                                All Roles
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={approvalHistoryRoleFilter === 'admin' ? 'active' : ''}
+                                onClick={() => {
+                                  setApprovalHistoryRoleFilter('admin')
+                                  setIsApprovalHistoryFilterOpen(false)
+                                }}
+                              >
+                                Admin
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={approvalHistoryRoleFilter === 'employee' ? 'active' : ''}
+                                onClick={() => {
+                                  setApprovalHistoryRoleFilter('employee')
+                                  setIsApprovalHistoryFilterOpen(false)
+                                }}
+                              >
+                                Employee
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={approvalHistoryRoleFilter === 'intern' ? 'active' : ''}
+                                onClick={() => {
+                                  setApprovalHistoryRoleFilter('intern')
+                                  setIsApprovalHistoryFilterOpen(false)
+                                }}
+                              >
+                                Intern
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -2940,7 +4485,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 </div>
 
                 <div className="admin-approval-history-list">
-                  {filteredApprovalHistory.length > 0 ? filteredApprovalHistory.map((entry) => (
+                  {pagedApprovalHistory.length > 0 ? pagedApprovalHistory.map((entry) => (
                     <article key={entry.id} className="admin-approval-history-item">
                       <div className="admin-approval-history-user">
                         <span>{entry.name.split(' ').map((part) => part.charAt(0)).slice(0, 2).join('').toUpperCase()}</span>
@@ -2954,6 +4499,22 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         {entry.decision === 'accepted' ? 'Accepted' : 'Declined'}
                       </p>
                       <p>{entry.time}</p>
+                      <div className="admin-history-action-group" aria-label="Approval history actions">
+                        <button
+                          type="button"
+                          className="admin-history-action-btn"
+                          onClick={() => handleArchiveApprovalHistory(entry.id)}
+                        >
+                          Archive
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-history-action-btn danger"
+                          onClick={() => handleDeleteApprovalHistory(entry.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </article>
                   )) : (
                     <div className="admin-dashboard-table-empty">
@@ -2962,6 +4523,42 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         : 'No approval history yet.'}
                     </div>
                   )}
+                </div>
+                <div className="admin-dashboard-pagination">
+                  <p className="admin-dashboard-pagination-summary">
+                    Showing <b>{approvalHistoryTotalResults === 0 ? 0 : approvalHistoryStartIndex + 1}</b> to <b>{approvalHistoryEndIndex}</b> of <b>{approvalHistoryTotalResults}</b> results
+                  </p>
+                  <div className="admin-dashboard-pagination-controls" aria-label="Approval history pagination">
+                    <button
+                      type="button"
+                      className="admin-dashboard-page-btn arrow"
+                      aria-label="Previous approval history page"
+                      disabled={approvalHistoryActivePage === 1}
+                      onClick={() => setApprovalHistoryCurrentPage((prev) => Math.max(1, prev - 1))}
+                    >
+                      &#8249;
+                    </button>
+                    {visibleApprovalHistoryPages.map((page) => (
+                      <button
+                        key={`approval-history-page-${page}`}
+                        type="button"
+                        className={`admin-dashboard-page-btn ${approvalHistoryActivePage === page ? 'active' : ''}`}
+                        onClick={() => setApprovalHistoryCurrentPage(page)}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    {visibleApprovalHistoryPages[visibleApprovalHistoryPages.length - 1] < approvalHistoryTotalPages ? <span className="admin-dashboard-page-ellipsis">...</span> : null}
+                    <button
+                      type="button"
+                      className="admin-dashboard-page-btn arrow"
+                      aria-label="Next approval history page"
+                      disabled={approvalHistoryActivePage === approvalHistoryTotalPages}
+                      onClick={() => setApprovalHistoryCurrentPage((prev) => Math.min(approvalHistoryTotalPages, prev + 1))}
+                    >
+                      &#8250;
+                    </button>
+                  </div>
                 </div>
                   </>
                 )}
@@ -3022,38 +4619,40 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <h2>Recent User Accounts</h2>
                     <p>Latest registrations and updates</p>
                   </div>
-                  <div
-                    className="admin-dashboard-table-tools"
-                    onMouseEnter={() => setIsTableSearchOpen(true)}
-                    onMouseLeave={() => {
-                      if (!hasTableSearchValue) setIsTableSearchOpen(false)
-                    }}
-                  >
-                    <label
-                      className={`admin-dashboard-table-search ${isTableSearchVisible ? 'is-open' : ''}`}
-                    >
-                      <IconSearch size={18} />
-                      <input
-                        ref={tableSearchInputRef}
-                        type="text"
-                        placeholder="Search users..."
-                        aria-label="Search users"
-                        value={tableSearchQuery}
-                        onChange={(event) => setTableSearchQuery(event.target.value)}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="admin-dashboard-icon-btn"
-                      aria-label="Search users"
-                      aria-pressed={isTableSearchVisible}
-                      onClick={() => {
-                        if (hasTableSearchValue) return
-                        setIsTableSearchOpen((prev) => !prev)
+                  <div className="admin-dashboard-table-tools">
+                    <div
+                      className="admin-dashboard-search-trigger"
+                      onMouseEnter={() => setIsTableSearchOpen(true)}
+                      onMouseLeave={() => {
+                        if (!hasTableSearchValue) setIsTableSearchOpen(false)
                       }}
                     >
-                      <IconSearch size={18} />
-                    </button>
+                      <label
+                        className={`admin-dashboard-table-search ${isTableSearchVisible ? 'is-open' : ''}`}
+                      >
+                        <IconSearch size={18} />
+                        <input
+                          ref={tableSearchInputRef}
+                          type="text"
+                          placeholder="Search users..."
+                          aria-label="Search users"
+                          value={tableSearchQuery}
+                          onChange={(event) => setTableSearchQuery(event.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="admin-dashboard-icon-btn"
+                        aria-label="Search users"
+                        aria-pressed={isTableSearchVisible}
+                        onClick={() => {
+                          if (hasTableSearchValue) return
+                          setIsTableSearchOpen((prev) => !prev)
+                        }}
+                      >
+                        <IconSearch size={18} />
+                      </button>
+                    </div>
                     <div className="admin-dashboard-filter-wrap" ref={tableFilterRef}>
                       <button
                         type="button"
@@ -3088,6 +4687,51 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           >
                             By A-Z
                           </button>
+                          <div className={`admin-dashboard-filter-item has-submenu ${tableRoleFilter !== 'all' ? 'active' : ''}`}>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="admin-dashboard-filter-parent"
+                              aria-haspopup="menu"
+                            >
+                              Role
+                            </button>
+                            <div className="admin-dashboard-filter-submenu" role="menu" aria-label="Filter users by role">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={tableRoleFilter === 'all' ? 'active' : ''}
+                                onClick={() => {
+                                  setTableRoleFilter('all')
+                                  setIsTableFilterOpen(false)
+                                }}
+                              >
+                                All Roles
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={tableRoleFilter === 'admin' ? 'active' : ''}
+                                onClick={() => {
+                                  setTableRoleFilter('admin')
+                                  setIsTableFilterOpen(false)
+                                }}
+                              >
+                                Admin
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={tableRoleFilter === 'intern' ? 'active' : ''}
+                                onClick={() => {
+                                  setTableRoleFilter('intern')
+                                  setIsTableFilterOpen(false)
+                                }}
+                              >
+                                Intern
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -3099,6 +4743,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                   <span>Role</span>
                   <span>Status</span>
                   <span>Joined</span>
+                  <span>Actions</span>
                 </div>
 
                 <div className="admin-dashboard-table-body">
@@ -3118,6 +4763,13 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           {user.status === 'active' ? 'Active' : 'Inactive'}
                         </p>
                         <p>{user.joined}</p>
+                        <button
+                          type="button"
+                          className="admin-dashboard-detail-btn"
+                          onClick={() => setSelectedDashboardUser(user)}
+                        >
+                          View Full Details
+                        </button>
                       </article>
                     ))
                   ) : (
@@ -3149,7 +4801,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         {page}
                       </button>
                     ))}
-                    {totalPages > 3 ? <span className="admin-dashboard-page-ellipsis">...</span> : null}
+                    {visiblePages[visiblePages.length - 1] < totalPages ? <span className="admin-dashboard-page-ellipsis">...</span> : null}
                     <button
                       type="button"
                       className="admin-dashboard-page-btn arrow"
