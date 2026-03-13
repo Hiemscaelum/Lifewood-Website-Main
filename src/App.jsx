@@ -6746,7 +6746,7 @@ const PhilImpactPage = () => {
   )
 }
 
-const CareersPage = () => {
+const CareersPage = ({ onNavigate = () => {} }) => {
   const cultureBenefits = [
     'Flexible',
     'Supportive',
@@ -6827,6 +6827,15 @@ const CareersPage = () => {
                 Join Lifewood and work at the intersection of technology, quality, and social impact. We are
                 hiring people who care about high standards, inclusive teams, and meaningful outcomes.
               </p>
+              <div className="careers-hero-actions">
+                <button
+                  type="button"
+                  className="careers-cta"
+                  onClick={() => onNavigate('/join-us')}
+                >
+                  Join Us
+                </button>
+              </div>
             </div>
 
             <aside className="careers-hero-panel" aria-label="Careers highlights">
@@ -6914,6 +6923,336 @@ const CareersPage = () => {
         </div>
       </section>
 
+    </main>
+  )
+}
+
+const JoinUsPage = ({ onNavigate = () => {} }) => {
+  const [countryOpen, setCountryOpen] = useState(false)
+  const [selectedCountry, setSelectedCountry] = useState('')
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const countryRef = useRef(null)
+  const ageRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (countryRef.current && !countryRef.current.contains(event.target)) {
+        setCountryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const countries = [
+    'Argentina',
+    'Australia',
+    'Bangladesh',
+    'Brazil',
+    'Canada',
+    'Chile',
+    'China',
+    'Colombia',
+    'Denmark',
+    'Egypt',
+    'France',
+    'Germany',
+    'Hong Kong',
+    'India',
+    'Indonesia',
+    'Ireland',
+    'Italy',
+    'Japan',
+    'Kenya',
+    'Kuwait',
+    'Malaysia',
+    'Mexico',
+    'Netherlands',
+    'New Zealand',
+    'Nigeria',
+    'Norway',
+    'Pakistan',
+    'Peru',
+    'Philippines',
+    'Qatar',
+    'Saudi Arabia',
+    'Singapore',
+    'South Africa',
+    'South Korea',
+    'Spain',
+    'Sweden',
+    'Taiwan',
+    'Thailand',
+    'United Arab Emirates',
+    'United Kingdom',
+    'United States',
+    'Vietnam',
+  ]
+
+  const adjustAge = (delta) => {
+    if (!ageRef.current) return
+    const min = Number(ageRef.current.min || 0)
+    const max = Number(ageRef.current.max || 120)
+    const current = Number(ageRef.current.value || 0)
+    let next = current + delta
+    if (Number.isNaN(next)) next = min
+    if (next < min) next = min
+    if (next > max) next = max
+    ageRef.current.value = String(next)
+  }
+
+  return (
+    <main className="joinus-page">
+      <section className="joinus-hero">
+        <div className="joinus-bg" aria-hidden="true">
+          <div className="joinus-liquid-wrap">
+            <LiquidEther
+              colors={['#29ff69', '#9effb6', '#d19f66']}
+              mouseForce={14}
+              cursorSize={110}
+              isViscous
+              viscous={24}
+              iterationsViscous={18}
+              iterationsPoisson={18}
+              resolution={0.36}
+              isBounce={false}
+              autoDemo
+              autoSpeed={0.38}
+              autoIntensity={1.5}
+              takeoverDuration={0.25}
+              autoResumeDelay={3000}
+              autoRampDuration={0.6}
+            />
+          </div>
+        </div>
+        <div className="container joinus-shell">
+          <div className="joinus-header">
+            <p className="joinus-kicker">Welcome to Lifewood</p>
+            <h1>
+              Join the world&apos;s leading provider of AI-powered <span>data</span> solutions.
+            </h1>
+            <p className="joinus-subtitle">
+              This application is currently in beta. Please be advised that features and functionality may
+              undergo updates during this refinement phase.
+            </p>
+            <div className="joinus-header-actions">
+              <button
+                type="button"
+                className="joinus-readmore"
+                onClick={() => onNavigate('/about')}
+              >
+                Read more about us
+              </button>
+              <button type="button" className="joinus-help" onClick={() => setIsHelpOpen(true)}>
+                Need Help?
+              </button>
+            </div>
+          </div>
+
+          <form className="joinus-card" aria-label="Join our team application form">
+            <div className="joinus-card-head">
+              <h2>Join Our Team</h2>
+              <p>Please fill out the form below to apply.</p>
+            </div>
+
+            <div className="joinus-grid">
+              <label className="joinus-field">
+                <span>First Name</span>
+                <input type="text" placeholder="e.g. Michael" />
+              </label>
+              <label className="joinus-field">
+                <span>Last Name</span>
+                <input type="text" placeholder="e.g. Chen" />
+              </label>
+
+              <label className="joinus-field joinus-select-field">
+                <span>Gender</span>
+                <select defaultValue="">
+                  <option value="" disabled>Select gender</option>
+                  <option>Male</option>
+                  <option>Female</option>
+                  <option>Prefer not to say</option>
+                </select>
+                <span className="joinus-select-icon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 14 14">
+                    <path d="M3 5.5L7 9.5L11 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
+                </span>
+              </label>
+              <label className="joinus-field joinus-age-field">
+                <span>Age</span>
+                <div className="joinus-stepper">
+                  <input ref={ageRef} type="number" placeholder="e.g. 24" min="16" max="80" />
+                  <div className="joinus-stepper-buttons" aria-hidden="true">
+                    <button type="button" className="joinus-stepper-btn" onClick={() => adjustAge(1)}>
+                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                        <path d="M2 6L5 3L8 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    <button type="button" className="joinus-stepper-btn" onClick={() => adjustAge(-1)}>
+                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                        <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </label>
+
+              <label className="joinus-field joinus-field-phone">
+                <span>Phone Number</span>
+                <div className="joinus-phone">
+                  <select aria-label="Country code">
+                    <option>+63 (Philippines)</option>
+                    <option>+1 (USA)</option>
+                    <option>+44 (UK)</option>
+                    <option>+61 (Australia)</option>
+                  </select>
+                  <input type="tel" placeholder="912345678" />
+                </div>
+              </label>
+
+              <label className="joinus-field">
+                <span>Email Address</span>
+                <input type="email" placeholder="michael@example.com" />
+              </label>
+
+              <label className="joinus-field joinus-select-field">
+                <span>Position Applied</span>
+                <select defaultValue="">
+                  <option value="" disabled>Select position to add</option>
+                  <option>Admin Accounting</option>
+                  <option>AI Video Creator/Editor</option>
+                  <option>Casual Video Models (Video Data Collection)</option>
+                  <option>Data Annotator (Iphone User)</option>
+                  <option>Data Curation (Genealogy Project)</option>
+                  <option>Data Scraper/Crawler (Int&apos;l Text)</option>
+                  <option>Genealogy Project Team Leader</option>
+                  <option>HR/Admin Assistant</option>
+                  <option>Image Data Collector (Capturing Home Dishes and Menu)</option>
+                  <option>Image Data Collector (Capturing Text - Rich Items)</option>
+                  <option>Intern (Applicable to PH Only)</option>
+                  <option>Marketing &amp; Sales Executive</option>
+                  <option>Moderator &amp; Voice Participants (Voice Data Collection)</option>
+                  <option>Operation Manager</option>
+                  <option>Social Media Content Marketing</option>
+                  <option>Text Data Collector (Gemini User)</option>
+                  <option>Voice Recording Participants (FaceTime Audio Recording Session)</option>
+                  <option>Voice Recording Participants (Short Sentences Recording)</option>
+                  <option>All of the Above</option>
+                </select>
+                <span className="joinus-select-icon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 14 14">
+                    <path d="M3 5.5L7 9.5L11 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
+                </span>
+              </label>
+
+              <div className="joinus-field joinus-address-row">
+                <label className="joinus-field">
+                  <span>Country</span>
+                  <div
+                    className={`joinus-custom-select ${countryOpen ? 'is-open' : ''}`}
+                    ref={countryRef}
+                  >
+                    <button
+                      type="button"
+                      className="joinus-select-trigger"
+                      onClick={() => setCountryOpen((prev) => !prev)}
+                    >
+                      <span>{selectedCountry || 'Select country'}</span>
+                      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                    {countryOpen && (
+                      <div className="joinus-select-list" role="listbox">
+                        {countries.map((country) => (
+                          <button
+                            type="button"
+                            key={country}
+                            className={`joinus-select-option ${selectedCountry === country ? 'selected' : ''}`}
+                            onMouseDown={(event) => {
+                              event.preventDefault()
+                              setSelectedCountry(country)
+                              setCountryOpen(false)
+                            }}
+                            role="option"
+                            aria-selected={selectedCountry === country}
+                          >
+                            {country}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+
+                <label className="joinus-field">
+                  <span>Current Address</span>
+                  <input type="text" placeholder="e.g. Quezon City, Metro Manila" />
+                </label>
+              </div>
+
+              <label className="joinus-field joinus-field-full">
+                <span>Upload CV (PDF)</span>
+                <div className="joinus-upload">
+                  <input type="file" accept="application/pdf" />
+                  <span>Click to upload or drag and drop</span>
+                  <small>PDF only (max. 10MB)</small>
+                </div>
+              </label>
+            </div>
+
+            <button type="submit" className="joinus-submit">Submit Application</button>
+          </form>
+        </div>
+      </section>
+
+      {isHelpOpen && (
+        <div className="joinus-modal-overlay" role="dialog" aria-modal="true">
+          <div className="joinus-modal">
+            <button
+              type="button"
+              className="joinus-modal-close"
+              aria-label="Close help dialog"
+              onClick={() => setIsHelpOpen(false)}
+            >
+              ×
+            </button>
+            <h3>About Your Application</h3>
+
+            <h4>Application Process</h4>
+            <p>
+              Thank you for your interest in joining our team! This application form is the first step in our
+              hiring process.
+            </p>
+
+            <h4>What Happens Next?</h4>
+            <ul>
+              <li>Your application will be reviewed by our HR team</li>
+              <li>Your CV will be evaluated based on our requirements</li>
+              <li>You&apos;ll receive a confirmation email with your application details</li>
+              <li>Our team will contact you if your profile matches our needs</li>
+            </ul>
+
+            <h4>Need More Help?</h4>
+            <p>
+              If you encounter any issues or have questions, please contact us at
+              <span className="joinus-help-email"> hr@lifewood.com</span>
+            </p>
+
+            <button type="button" className="joinus-modal-cta" onClick={() => setIsHelpOpen(false)}>
+              Got it, thanks!
+            </button>
+          </div>
+          <button
+            type="button"
+            className="joinus-modal-backdrop"
+            aria-hidden="true"
+            onClick={() => setIsHelpOpen(false)}
+          />
+        </div>
+      )}
     </main>
   )
 }
@@ -7118,7 +7457,9 @@ function App() {
   } else if (currentPath === '/phil-impact') {
     pageContent = <PhilImpactPage />
   } else if (currentPath === '/careers') {
-    pageContent = <CareersPage />
+    pageContent = <CareersPage onNavigate={navigateTo} />
+  } else if (currentPath === '/join-us') {
+    pageContent = <JoinUsPage onNavigate={navigateTo} />
   } else if (currentPath === '/contact-us') {
     pageContent = <ContactUsPage />
   } else if (currentPath === '/internal-news') {
