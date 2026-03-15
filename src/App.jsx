@@ -6931,6 +6931,7 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
   const [countryOpen, setCountryOpen] = useState(false)
   const [selectedCountry, setSelectedCountry] = useState('')
   const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [joinUsStep, setJoinUsStep] = useState(1)
   const countryRef = useRef(null)
   const ageRef = useRef(null)
 
@@ -7049,161 +7050,209 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
             </div>
           </div>
 
-          <form className="joinus-card" aria-label="Join our team application form">
+          <form
+            className="joinus-card"
+            aria-label="Join our team application form"
+            onSubmit={(event) => event.preventDefault()}
+          >
             <div className="joinus-card-head">
               <h2>Join Our Team</h2>
               <p>Please fill out the form below to apply.</p>
             </div>
 
-            <div className="joinus-grid">
-              <label className="joinus-field">
-                <span>First Name</span>
-                <input type="text" placeholder="e.g. Michael" />
-              </label>
-              <label className="joinus-field">
-                <span>Last Name</span>
-                <input type="text" placeholder="e.g. Chen" />
-              </label>
+            {joinUsStep === 1 ? (
+              <>
+                <div className="joinus-grid">
+                  <label className="joinus-field">
+                    <span>First Name</span>
+                    <input type="text" placeholder="e.g. Michael" />
+                  </label>
+                  <label className="joinus-field">
+                    <span>Last Name</span>
+                    <input type="text" placeholder="e.g. Chen" />
+                  </label>
 
-              <label className="joinus-field joinus-select-field">
-                <span>Gender</span>
-                <select defaultValue="">
-                  <option value="" disabled>Select gender</option>
-                  <option>Male</option>
-                  <option>Female</option>
-                  <option>Prefer not to say</option>
-                </select>
-                <span className="joinus-select-icon" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 14 14">
-                    <path d="M3 5.5L7 9.5L11 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                </span>
-              </label>
-              <label className="joinus-field joinus-age-field">
-                <span>Age</span>
-                <div className="joinus-stepper">
-                  <input ref={ageRef} type="number" placeholder="e.g. 24" min="16" max="80" />
-                  <div className="joinus-stepper-buttons" aria-hidden="true">
-                    <button type="button" className="joinus-stepper-btn" onClick={() => adjustAge(1)}>
-                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                        <path d="M2 6L5 3L8 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                    <button type="button" className="joinus-stepper-btn" onClick={() => adjustAge(-1)}>
-                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                        <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </label>
-
-              <label className="joinus-field joinus-field-phone">
-                <span>Phone Number</span>
-                <div className="joinus-phone">
-                  <select aria-label="Country code">
-                    <option>+63 (Philippines)</option>
-                    <option>+1 (USA)</option>
-                    <option>+44 (UK)</option>
-                    <option>+61 (Australia)</option>
-                  </select>
-                  <input type="tel" placeholder="912345678" />
-                </div>
-              </label>
-
-              <label className="joinus-field">
-                <span>Email Address</span>
-                <input type="email" placeholder="michael@example.com" />
-              </label>
-
-              <label className="joinus-field joinus-select-field">
-                <span>Position Applied</span>
-                <select defaultValue="">
-                  <option value="" disabled>Select position to add</option>
-                  <option>Admin Accounting</option>
-                  <option>AI Video Creator/Editor</option>
-                  <option>Casual Video Models (Video Data Collection)</option>
-                  <option>Data Annotator (Iphone User)</option>
-                  <option>Data Curation (Genealogy Project)</option>
-                  <option>Data Scraper/Crawler (Int&apos;l Text)</option>
-                  <option>Genealogy Project Team Leader</option>
-                  <option>HR/Admin Assistant</option>
-                  <option>Image Data Collector (Capturing Home Dishes and Menu)</option>
-                  <option>Image Data Collector (Capturing Text - Rich Items)</option>
-                  <option>Intern (Applicable to PH Only)</option>
-                  <option>Marketing &amp; Sales Executive</option>
-                  <option>Moderator &amp; Voice Participants (Voice Data Collection)</option>
-                  <option>Operation Manager</option>
-                  <option>Social Media Content Marketing</option>
-                  <option>Text Data Collector (Gemini User)</option>
-                  <option>Voice Recording Participants (FaceTime Audio Recording Session)</option>
-                  <option>Voice Recording Participants (Short Sentences Recording)</option>
-                  <option>All of the Above</option>
-                </select>
-                <span className="joinus-select-icon" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 14 14">
-                    <path d="M3 5.5L7 9.5L11 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                </span>
-              </label>
-
-              <div className="joinus-field joinus-address-row">
-                <label className="joinus-field">
-                  <span>Country</span>
-                  <div
-                    className={`joinus-custom-select ${countryOpen ? 'is-open' : ''}`}
-                    ref={countryRef}
-                  >
-                    <button
-                      type="button"
-                      className="joinus-select-trigger"
-                      onClick={() => setCountryOpen((prev) => !prev)}
-                    >
-                      <span>{selectedCountry || 'Select country'}</span>
-                      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                    {countryOpen && (
-                      <div className="joinus-select-list" role="listbox">
-                        {countries.map((country) => (
-                          <button
-                            type="button"
-                            key={country}
-                            className={`joinus-select-option ${selectedCountry === country ? 'selected' : ''}`}
-                            onMouseDown={(event) => {
-                              event.preventDefault()
-                              setSelectedCountry(country)
-                              setCountryOpen(false)
-                            }}
-                            role="option"
-                            aria-selected={selectedCountry === country}
-                          >
-                            {country}
-                          </button>
-                        ))}
+                  <label className="joinus-field joinus-select-field">
+                    <span>Gender</span>
+                    <div className="joinus-select-wrap">
+                      <select defaultValue="">
+                        <option value="" disabled>Select gender</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Prefer not to say</option>
+                      </select>
+                      <span className="joinus-select-icon" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 14 14">
+                          <path d="M3 5.5L7 9.5L11 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                        </svg>
+                      </span>
+                    </div>
+                  </label>
+                  <label className="joinus-field joinus-age-field">
+                    <span>Age</span>
+                    <div className="joinus-stepper">
+                      <input ref={ageRef} type="number" placeholder="e.g. 24" min="16" max="80" />
+                      <div className="joinus-stepper-buttons" aria-hidden="true">
+                        <button type="button" className="joinus-stepper-btn" onClick={() => adjustAge(1)}>
+                          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                            <path d="M2 6L5 3L8 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                        <button type="button" className="joinus-stepper-btn" onClick={() => adjustAge(-1)}>
+                          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                            <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
                       </div>
-                    )}
+                    </div>
+                  </label>
+
+                  <label className="joinus-field joinus-field-phone">
+                    <span>Phone Number</span>
+                    <div className="joinus-phone">
+                      <select aria-label="Country code">
+                        <option>+63 (Philippines)</option>
+                        <option>+1 (USA)</option>
+                        <option>+44 (UK)</option>
+                        <option>+61 (Australia)</option>
+                      </select>
+                      <input type="tel" placeholder="912345678" />
+                    </div>
+                  </label>
+
+                  <label className="joinus-field">
+                    <span>Email Address</span>
+                    <input type="email" placeholder="michael@example.com" />
+                  </label>
+
+                  <label className="joinus-field joinus-select-field">
+                    <span>Position Applied</span>
+                    <div className="joinus-select-wrap">
+                      <select defaultValue="">
+                        <option value="" disabled>Select position to add</option>
+                        <option>Admin Accounting</option>
+                        <option>AI Video Creator/Editor</option>
+                        <option>Casual Video Models (Video Data Collection)</option>
+                        <option>Data Annotator (Iphone User)</option>
+                        <option>Data Curation (Genealogy Project)</option>
+                        <option>Data Scraper/Crawler (Int&apos;l Text)</option>
+                        <option>Genealogy Project Team Leader</option>
+                        <option>HR/Admin Assistant</option>
+                        <option>Image Data Collector (Capturing Home Dishes and Menu)</option>
+                        <option>Image Data Collector (Capturing Text - Rich Items)</option>
+                        <option>Intern (Applicable to PH Only)</option>
+                        <option>Marketing &amp; Sales Executive</option>
+                        <option>Moderator &amp; Voice Participants (Voice Data Collection)</option>
+                        <option>Operation Manager</option>
+                        <option>Social Media Content Marketing</option>
+                        <option>Text Data Collector (Gemini User)</option>
+                        <option>Voice Recording Participants (FaceTime Audio Recording Session)</option>
+                        <option>Voice Recording Participants (Short Sentences Recording)</option>
+                        <option>All of the Above</option>
+                      </select>
+                      <span className="joinus-select-icon" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 14 14">
+                          <path d="M3 5.5L7 9.5L11 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                        </svg>
+                      </span>
+                    </div>
+                  </label>
+
+                  <div className="joinus-field joinus-address-row">
+                    <label className="joinus-field">
+                      <span>Country</span>
+                      <div
+                        className={`joinus-custom-select ${countryOpen ? 'is-open' : ''}`}
+                        ref={countryRef}
+                      >
+                        <button
+                          type="button"
+                          className="joinus-select-trigger"
+                          onClick={() => setCountryOpen((prev) => !prev)}
+                        >
+                          <span>{selectedCountry || 'Select country'}</span>
+                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                        {countryOpen && (
+                          <div className="joinus-select-list" role="listbox">
+                            {countries.map((country) => (
+                              <button
+                                type="button"
+                                key={country}
+                                className={`joinus-select-option ${selectedCountry === country ? 'selected' : ''}`}
+                                onMouseDown={(event) => {
+                                  event.preventDefault()
+                                  setSelectedCountry(country)
+                                  setCountryOpen(false)
+                                }}
+                                role="option"
+                                aria-selected={selectedCountry === country}
+                              >
+                                {country}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+
+                    <label className="joinus-field">
+                      <span>Current Address</span>
+                      <input type="text" placeholder="e.g. Quezon City, Metro Manila" />
+                    </label>
                   </div>
-                </label>
 
-                <label className="joinus-field">
-                  <span>Current Address</span>
-                  <input type="text" placeholder="e.g. Quezon City, Metro Manila" />
-                </label>
-              </div>
-
-              <label className="joinus-field joinus-field-full">
-                <span>Upload CV (PDF)</span>
-                <div className="joinus-upload">
-                  <input type="file" accept="application/pdf" />
-                  <span>Click to upload or drag and drop</span>
-                  <small>PDF only (max. 10MB)</small>
+                  <label className="joinus-field joinus-field-full">
+                    <span>Upload CV (PDF)</span>
+                    <div className="joinus-upload">
+                      <input type="file" accept="application/pdf" />
+                      <span>Click to upload or drag and drop</span>
+                      <small>PDF only (max. 10MB)</small>
+                    </div>
+                  </label>
                 </div>
-              </label>
-            </div>
 
-            <button type="submit" className="joinus-submit">Submit Application</button>
+                <button type="button" className="joinus-submit" onClick={() => setJoinUsStep(2)}>
+                  Next
+                </button>
+                <div className="joinus-step-dots" aria-label="Form step 1 of 2">
+                  <span className="is-active" />
+                  <span />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="joinus-grid">
+                  <label className="joinus-field">
+                    <span>Username</span>
+                    <input type="text" placeholder="e.g. michael.chen" />
+                  </label>
+                  <label className="joinus-field">
+                    <span>New Password</span>
+                    <input type="password" placeholder="Create a password" />
+                  </label>
+                  <label className="joinus-field">
+                    <span>Confirm Password</span>
+                    <input type="password" placeholder="Re-enter password" />
+                  </label>
+                </div>
+
+                <div className="joinus-step-actions">
+                  <button type="button" className="joinus-secondary" onClick={() => setJoinUsStep(1)}>
+                    Back
+                  </button>
+                  <button type="submit" className="joinus-submit">
+                    Submit Application
+                  </button>
+                </div>
+                <div className="joinus-step-dots" aria-label="Form step 2 of 2">
+                  <span />
+                  <span className="is-active" />
+                </div>
+              </>
+            )}
           </form>
         </div>
       </section>
