@@ -1558,7 +1558,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const evaluationHistoryFilterRef = useRef(null)
   const analyticsFilterRef = useRef(null)
   const PAGE_SIZE = 5
-  const MANAGE_PAGE_SIZE = 5
+  const MANAGE_PAGE_SIZE = 3
   const EVALUATION_PAGE_SIZE = 4
   const APPROVAL_PAGE_SIZE = 5
   const ANALYTICS_PAGE_SIZE = 3
@@ -3447,10 +3447,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 <div className="admin-manage-table-grid admin-manage-table-columns">
                   <span>User Identity</span>
                   <span>Role</span>
+                  <span>Gmail</span>
                   <span>Contact</span>
-                  <span>Course</span>
-                  <span>Hours</span>
-                  <span>University</span>
                   <span>Date Added</span>
                   <span>Actions</span>
                 </div>
@@ -3462,18 +3460,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         <span>{member.initials}</span>
                         <div>
                           <strong>{member.name}</strong>
-                          <small>{member.email}</small>
                         </div>
                       </div>
                       <p><em>{member.access}</em></p>
+                      <p>{member.email}</p>
                       <p>{member.contactNumber}</p>
-                      <p>{member.course}</p>
-                      <p>{member.internshipHours}</p>
-                      <p>{member.university}</p>
-                      <p>
-                        {member.onboarding}
-                        <small>{member.verified ? 'Verified' : 'Pending'}</small>
-                      </p>
+                      <p>{member.onboarding}</p>
                       <div className="admin-manage-row-actions">
                         <button
                           type="button"
@@ -4862,29 +4854,6 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 </div>
                 </section>
 
-                <aside className="admin-dashboard-top-performers">
-                  <div className="admin-dashboard-top-performers-head">
-                    <h3>Top Performers</h3>
-                    <small>Weekly Leaderboard</small>
-                  </div>
-                  <div className="admin-dashboard-top-performers-list">
-                    {topPerformers.map((member) => (
-                      <article key={`top-${member.email}`} className="admin-dashboard-top-performer-item">
-                        <div className="admin-dashboard-top-performer-user">
-                          <span>{member.initials}</span>
-                          <div>
-                            <strong>{member.name}</strong>
-                            <small>{member.role}</small>
-                          </div>
-                        </div>
-                        <div className="admin-dashboard-top-performer-score">
-                          <b>{member.score.toFixed(1)}%</b>
-                          <small>{member.tasks} tasks</small>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </aside>
               </section>
             </>
           )}
