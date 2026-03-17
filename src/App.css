@@ -3510,6 +3510,40 @@ img {
   animation: joinusPopIn 0.24s ease;
 }
 
+.joinus-modal.joinus-pending-modal {
+  background: rgba(24, 28, 27, 0.92) !important;
+  color: #eef5f1;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.joinus-modal.joinus-pending-modal h3 {
+  color: #eef5f1;
+  margin-bottom: 10px;
+}
+
+.joinus-modal.joinus-pending-modal p {
+  color: rgba(236, 242, 239, 0.75);
+}
+
+.joinus-modal.joinus-pending-modal .joinus-modal-cta {
+  width: 100%;
+  margin-top: 16px;
+  background: linear-gradient(135deg, #ffb347 0%, #ff9b2b 100%);
+  color: #1e2e26;
+  box-shadow: 0 12px 24px rgba(255, 155, 43, 0.28);
+}
+
+.joinus-modal.joinus-pending-modal .joinus-modal-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(255, 155, 43, 0.35);
+}
+
+.joinus-modal.joinus-pending-modal .joinus-modal-close {
+  color: rgba(236, 242, 239, 0.7);
+}
+
 .joinus-modal h3 {
   margin: 0 0 14px;
   font-size: 20px;
@@ -3680,6 +3714,85 @@ img {
 .joinus-field span {
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+.joinus-field-full > span {
+  text-align: center;
+}
+
+.joinus-field.joinus-field-full {
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+
+.joinus-field.joinus-field-full > span {
+  margin-bottom: 6px;
+}
+
+.joinus-code-change {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: rgba(255, 226, 185, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.joinus-code-change:hover {
+  color: #ffd79c;
+}
+
+.joinus-code-input {
+  position: relative;
+  display: grid;
+}
+
+.joinus-code-input input {
+  padding-right: 110px;
+}
+
+.joinus-code-input .joinus-code-change {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.joinus-code-input .joinus-code-change:focus-visible {
+  outline: 2px solid rgba(255, 155, 43, 0.5);
+  outline-offset: 2px;
+}
+
+.joinus-otp {
+  display: grid;
+  grid-template-columns: repeat(6, 40px);
+  gap: 8px;
+  justify-content: center;
+}
+
+.joinus-otp-input {
+  height: 40px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  color: #f5f7f6;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.joinus-otp-input:focus {
+  border-color: #ff9b2b;
+  box-shadow: 0 0 0 2px rgba(255, 155, 43, 0.3);
+}
+
+.joinus-code-row small {
+  grid-column: 1 / -1;
+  color: rgba(236, 242, 239, 0.55);
+  font-size: 11px;
 }
 
 .joinus-age-field .joinus-stepper {
@@ -3934,9 +4047,25 @@ img {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.joinus-submit-error {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 92, 92, 0.12);
+  color: #c91f1f;
+  font-size: 0.9rem;
+}
+
 .joinus-submit:hover {
   transform: translateY(-1px);
   box-shadow: 0 16px 30px rgba(255, 155, 43, 0.35);
+}
+
+.joinus-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  box-shadow: none;
+  transform: none;
 }
 
 .joinus-step-actions {
@@ -3968,6 +4097,7 @@ img {
   width: auto;
   margin-top: 0;
 }
+
 
 .joinus-step-dots {
   margin-top: 12px;
@@ -4011,6 +4141,7 @@ img {
   .joinus-address-row {
     grid-template-columns: 1fr;
   }
+
 }
 
 @media (max-width: 640px) {
