@@ -20,53 +20,6 @@ const OFFER_PANEL_IMAGES = [
 ]
 const INTERN_DASHBOARD_PATH = '/dashboard'
 const ADMIN_DASHBOARD_PATH = '/admin-dashboard'
-const ADMIN_NAME_ROWS = [
-  { last: 'Antopina', first: 'John Wrexel', email: 'jw.antopina@gmail.com' },
-  { last: 'Barluado', first: 'Francis Merc', email: 'fmbarluado25@gmail.com' },
-  { last: 'Cabrillos', first: 'Dane Kiev', email: 'danekiev2003@gmail.com' },
-  { last: 'Cagampang', first: 'Emmanuel Jr.', email: 'orientaleac@gmail.com' },
-  { last: 'Casidsid', first: 'Twinky', email: 'twinkycasidsidx@gmail.com' },
-  { last: 'Castrodes', first: 'Atilla Hadrian', email: 'atillahadrianc@gmail.com' },
-  { last: 'Damayo', first: 'Jholmer', email: 'damayojholmer@gmail.com' },
-  { last: 'Francisco', first: 'Ezzel Jan', email: 'ezzelfrancisco95@gmail.com' },
-  { last: 'Gelborion', first: 'Francis Dave', email: 'gelboriondave@gmail.com' },
-  { last: 'Inocentes', first: 'Jose Danielle', email: 'daniel.inocentes30@gmail.com' },
-  { last: 'Jumao-as', first: 'Andre Daniel', email: 'jumaoasandre2003@gmail.com' },
-  { last: 'Jusga', first: 'Ailyn', email: 'ailynjusga99@gmail.com' },
-  { last: 'Lastimosa', first: 'Julius Jr.', email: 'juliusjrclastimosa@gmail.com' },
-  { last: 'Lico', first: 'Trixie Sandra', email: 'licotrixie@gmail.com' },
-  { last: 'Mahasol', first: 'Jayred Deil', email: 'jayredmahasol@gmail.com' },
-  { last: 'Mandado', first: 'Gerard Luis', email: 'gerardmandado@gmail.com' },
-  { last: 'Mumar', first: 'Justine Mhars', email: 'justinemharsmumar@gmail.com' },
-  { last: 'Prandas', first: 'Jumar', email: 'prandasmarie@gmail.com' },
-  { last: 'Quitco', first: 'Kyle Matthew', email: 'kylequitco3212@gmail.com' },
-  { last: 'Soriano', first: 'Darin Jan', email: 'darinjan13@gmail.com' },
-  { last: 'Sungahid', first: 'Raily', email: 'railysungahid@gmail.com' },
-  { last: 'Tacatani', first: 'Dominic', email: 'dominictacatani123@gmail.com' },
-  { last: 'Tampepe', first: 'Prince Christian', email: 'tadeochristianprince@gmail.com' },
-  { last: 'Tumungha', first: 'Hara Alexa', email: 'haraalexatumungha@gmail.com' },
-  { last: 'Ugdamin', first: 'Willa Mae', email: 'willamaeu@gmail.com' },
-  { last: 'Vargas', first: 'Harvey', email: 'harveycvargas@gmail.com' },
-  { last: 'Vergara', first: 'Aleah June', email: 'azeleah1@gmail.com' },
-  { last: 'Paug', first: 'Mart Francesfil', email: 'pmartfrancesfilromarate@gmail.com' },
-  { last: 'Pegarido', first: 'Sol Andrew', email: 'solandrewlabradapegarido@gmail.com' },
-  { last: 'Villaflor', first: 'Philip Vincent', email: 'philsulvil@gmail.com' },
-  { last: 'Nillama', first: 'Francis Garry', email: 'paengwapokaayo123@gmail.com' },
-]
-const ADMIN_COURSES = [
-  'BS Information Technology',
-  'BS Computer Science',
-  'BS Information Systems',
-  'BS Office Administration',
-  'BS Business Administration',
-]
-const ADMIN_UNIVERSITIES = [
-  'University of Cebu',
-  'Cebu Institute of Technology',
-  'University of San Carlos',
-  'University of the Philippines',
-  'University of Southern Philippines Foundation',
-]
 const ADD_MEMBER_UNIVERSITIES = [
   'University of San Carlos',
   'University of San Jose–Recoletos',
@@ -154,31 +107,6 @@ const getVisiblePageNumbers = (currentPage, totalPages, maxVisible = 3) => {
   return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index)
 }
 
-const createAdminUsers = () => ADMIN_NAME_ROWS.map((entry, index) => {
-  const firstToken = entry.first.split(' ')[0] || ''
-  const isAdminUser = entry.first === 'Francis Merc' && entry.last === 'Barluado'
-  const role = isAdminUser ? 'Admin' : 'Intern'
-  const isIntern = role === 'Intern'
-  const joinedDate = new Date(2024, 2, (index % 28) + 1)
-  return {
-    id: `seed-${index + 1}`,
-    initials: `${firstToken.charAt(0)}${entry.last.charAt(0)}`.toUpperCase(),
-    name: `${entry.first} ${entry.last}`.trim(),
-    email: entry.email,
-    role,
-    status: index % 6 === 0 ? 'inactive' : 'active',
-    joined: joinedDate.toISOString().slice(0, 10),
-    contactNumber: `09${String(170000000 + index * 137).padStart(9, '0')}`.slice(0, 11),
-    course: isIntern ? ADMIN_COURSES[index % ADMIN_COURSES.length] : '—',
-    internshipHours: isIntern ? `${240 + (index % 4) * 60} hrs` : '—',
-    university: isIntern ? ADMIN_UNIVERSITIES[index % ADMIN_UNIVERSITIES.length] : '—',
-    access: role,
-    activity: ['2 mins ago', '1 hour ago', '2 days ago', '5 mins ago', 'Just now'][index % 5] || 'Recently',
-    onboarding: formatAdminDate(joinedDate),
-    verified: index % 5 !== 2,
-    username: entry.email.split('@')[0],
-  }
-})
 
 // Logo component
 const Logo = () => (
@@ -1438,7 +1366,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [tableSortMode, setTableSortMode] = useState('date')
   const [tableRoleFilter, setTableRoleFilter] = useState('all')
   const [tableSearchQuery, setTableSearchQuery] = useState('')
-  const [manageUsers, setManageUsers] = useState(() => createAdminUsers())
+  const [manageUsers, setManageUsers] = useState([])
   const [applications, setApplications] = useState([])
   const [applicationsError, setApplicationsError] = useState('')
   const [isApplicationsLoading, setIsApplicationsLoading] = useState(false)
@@ -1448,36 +1376,10 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [addMemberStep, setAddMemberStep] = useState(1)
   const [addMemberForm, setAddMemberForm] = useState(() => getInitialAddMemberFormState())
   const [addMemberError, setAddMemberError] = useState('')
-  const [approvalHistory, setApprovalHistory] = useState([
-    {
-      id: 'history-1',
-      name: 'Karen Dominguez',
-      email: 'karendominguez@gmail.com',
-      role: 'Employee',
-      decision: 'declined',
-      time: 'Yesterday',
-      year: '2026',
-    },
-    {
-      id: 'history-2',
-      name: 'Amber Avery',
-      email: 'amberavery@gmail.com',
-      role: 'Intern',
-      decision: 'accepted',
-      time: '2 days ago',
-      year: '2026',
-    },
-  ])
+  const [approvalHistory, setApprovalHistory] = useState([])
   const [archivedApprovalHistoryIds, setArchivedApprovalHistoryIds] = useState(() => new Set())
   const [archivedEvaluationHistoryIds, setArchivedEvaluationHistoryIds] = useState(() => new Set())
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Approval Request', description: 'Aleah June Vergara requested Intern access. Review and accept or decline the registration.', time: '8H', read: false, status: 'pending', type: 'approval', section: 'current' },
-    { id: 2, title: 'Role Update Request', description: 'Julius Jr. Lastimosa requested role update to Employee.', time: '10H', read: false, status: 'action', type: 'messages', section: 'current' },
-    { id: 3, title: 'Approval Request', description: 'Mark Maon submitted an Employee account request. Accept or decline after checking the profile details.', time: '18H', read: false, status: 'pending', type: 'approval', section: 'current' },
-    { id: 4, title: 'Approval Request', description: 'Hara Alexa Tumungha is awaiting Admin review for onboarding access.', time: '1 DAY', read: true, status: 'pending', type: 'approval', section: 'current' },
-    { id: 5, title: 'Reminder Scheduled', description: 'Morgan May set a reminder for Amber Avery follow-up.', time: 'YESTERDAY', read: true, status: 'info', type: 'messages', section: 'previous' },
-    { id: 6, title: 'Approval Closed', description: 'Karen Dominguez account request was declined and archived.', time: 'YESTERDAY', read: true, status: 'info', type: 'approval', section: 'previous' },
-  ])
+  const [notifications, setNotifications] = useState([])
   const adminUserMenuRef = useRef(null)
   const adminNotificationRef = useRef(null)
   const tableSearchInputRef = useRef(null)
@@ -1613,19 +1515,34 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     const name = `${firstName} ${lastName}`.trim() || 'Applicant'
     const initialsBase = `${firstName.charAt(0) || 'A'}${lastName.charAt(0) || ''}`.toUpperCase()
     const createdAt = application.created_at ? new Date(application.created_at) : null
-    const phone = [application.phone_country_code, application.phone_number].filter(Boolean).join(' ')
+    const phone = application.phone_number || ''
+    const email = application.email || '—'
+    const username = email && email !== '—' ? email.split('@')[0] : '—'
 
     return {
       id: application.id,
       name,
-      email: application.email || '—',
+      email,
+      firstName,
+      lastName,
+      gender: application.gender || '—',
+      age: application.age ?? '—',
+      phoneCountryCode: application.phone_country_code || '',
       initials: initialsBase || 'NA',
       requestedRole: application.position_applied || 'Applicant',
       contactNumber: phone || '—',
-      university: application.university || '—',
+      positionApplied: application.position_applied || '—',
+      country: application.country || '—',
+      currentAddress: application.current_address || '—',
+      cvFilename: application.cv_filename || '—',
+      cvUrl: application.cv_url || '',
+      cvSize: application.cv_size ?? null,
+      status: 'inactive',
+      onboarding: createdAt ? formatAdminDate(createdAt) : '—',
+      username,
+      activity: 'Pending approval',
       requestedAt: createdAt ? createdAt.toLocaleDateString() : 'Recently',
       joined: application.created_at || new Date().toISOString(),
-      status: 'inactive',
     }
   })
   const normalizedApprovalSearch = approvalSearchQuery.trim().toLowerCase()
@@ -1818,12 +1735,13 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   ]
 
   useEffect(() => {
+    if (adminActivePanel !== 'user-approval') return
     let isMounted = true
     const loadApplications = async () => {
       setIsApplicationsLoading(true)
       setApplicationsError('')
       const { data, error } = await supabase
-        .from('applications')
+        .from('job_applications')
         .select('*')
         .order('created_at', { ascending: false })
       if (!isMounted) return
@@ -1841,7 +1759,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [adminActivePanel])
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -2604,39 +2522,45 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 		                  </article>
 		                </div>
                     </>
-		              ) : (
+	              ) : (
 	                <div className="admin-dashboard-detail-grid">
 	                  <article>
-	                    <small>Status</small>
-	                    <strong>{selectedDashboardUser.status === 'active' ? 'Active' : 'Inactive'}</strong>
+	                    <small>Gender</small>
+	                    <strong>{selectedDashboardUser.gender || '—'}</strong>
 	                  </article>
 	                  <article>
-	                    <small>Contact</small>
-	                    <strong>{selectedDashboardUser.contactNumber}</strong>
+	                    <small>Age</small>
+	                    <strong>{selectedDashboardUser.age || '—'}</strong>
 	                  </article>
 	                  <article>
-	                    <small>Course</small>
-	                    <strong>{selectedDashboardUser.course}</strong>
+	                    <small>Phone Number</small>
+	                    <strong>{selectedDashboardUser.contactNumber || '—'}</strong>
 	                  </article>
 	                  <article>
-	                    <small>Hours</small>
-	                    <strong>{selectedDashboardUser.internshipHours}</strong>
+	                    <small>Email Address</small>
+	                    <strong>{selectedDashboardUser.email || '—'}</strong>
 	                  </article>
 	                  <article>
-	                    <small>University</small>
-	                    <strong>{selectedDashboardUser.university}</strong>
+	                    <small>Position Applied</small>
+	                    <strong>{selectedDashboardUser.positionApplied || '—'}</strong>
 	                  </article>
 	                  <article>
-	                    <small>Date Added</small>
-	                    <strong>{selectedDashboardUser.onboarding}</strong>
+	                    <small>Country</small>
+	                    <strong>{selectedDashboardUser.country || '—'}</strong>
 	                  </article>
 	                  <article>
-	                    <small>Username</small>
-	                    <strong>{selectedDashboardUser.username}</strong>
+	                    <small>Current Address</small>
+	                    <strong>{selectedDashboardUser.currentAddress || '—'}</strong>
 	                  </article>
 	                  <article>
-	                    <small>Last Activity</small>
-	                    <strong>{selectedDashboardUser.activity}</strong>
+	                    <small>Upload CV (PDF)</small>
+	                    <strong>
+	                      {selectedDashboardUser.cvUrl ? (
+	                        <a href={selectedDashboardUser.cvUrl} target="_blank" rel="noreferrer">
+	                          {selectedDashboardUser.cvFilename || 'View CV'}
+	                        </a>
+	                      ) : (selectedDashboardUser.cvFilename || '—')}
+	                    </strong>
 	                  </article>
 	                </div>
 	              )}
@@ -4231,9 +4155,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
                 <div className="admin-approval-table-grid admin-manage-table-columns">
                   <span>User Identity</span>
-                  <span>Requested Role</span>
+                  <span>Role</span>
+                  <span>Gmail</span>
                   <span>Contact</span>
-                  <span>University</span>
                   <span>Requested</span>
                   <span>Actions</span>
                 </div>
@@ -4245,27 +4169,35 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         <span>{member.initials}</span>
                         <div>
                           <strong>{member.name}</strong>
-                          <small>{member.email}</small>
                         </div>
                       </div>
                       <p><em>{member.requestedRole}</em></p>
+                      <p>{member.email}</p>
                       <p>{member.contactNumber}</p>
-                      <p>{member.university}</p>
                       <p>{member.requestedAt}</p>
                       <div className="admin-approval-row-actions">
                         <button
                           type="button"
+                          className="admin-approval-action detail"
+                          onClick={() => setSelectedDashboardUser(member)}
+                        >
+                          View Full Detail
+                        </button>
+                        <button
+                          type="button"
                           className="admin-approval-action approve"
                           onClick={() => handleApprovalQueueAction(member.email, 'approve')}
+                          aria-label="Approve application"
                         >
-                          Approve
+                          <IconUserCheck size={16} />
                         </button>
                         <button
                           type="button"
                           className="admin-approval-action decline"
                           onClick={() => handleApprovalQueueAction(member.email, 'decline')}
+                          aria-label="Decline application"
                         >
-                          Decline
+                          <IconUserX size={16} />
                         </button>
                       </div>
                     </article>
