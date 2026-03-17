@@ -484,9 +484,10 @@ const GetStartedPage = ({ authMode = 'signup', onAuthModeChange = () => {}, onNa
   const [signInIdentifier, setSignInIdentifier] = useState('')
   const [signInPassword, setSignInPassword] = useState('')
   const [signInError, setSignInError] = useState('')
-  const [signupStep, setSignupStep] = useState(1)
+  const [signUpError, setSignUpError] = useState('')
+  const [signUpSuccess, setSignUpSuccess] = useState('')
   const [signupForm, setSignupForm] = useState({
-    username: '',
+    displayName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -499,23 +500,29 @@ const GetStartedPage = ({ authMode = 'signup', onAuthModeChange = () => {}, onNa
     customUniversity: '',
   })
 
-  useEffect(() => {
-    if (authMode !== 'signup') {
-      setSignupStep(1)
-    }
-  }, [authMode])
-
   const handleSignIn = (event) => {
     event.preventDefault()
-    const normalizedUser = signInIdentifier.trim().toLowerCase()
+    const identifier = signInIdentifier.trim()
 
-    if (normalizedUser === 'adminuser' && signInPassword === 'adminuser') {
-      setSignInError('')
-      onNavigate(ADMIN_DASHBOARD_PATH)
+    if (!identifier || !signInPassword) {
+      setSignInError('Please enter your email and password.')
       return
     }
 
-    setSignInError('Invalid credentials. Use adminuser / adminuser.')
+    if (!identifier.includes('@')) {
+      setSignInError('Please use your email address to sign in.')
+      return
+    }
+
+    supabase.auth.signInWithPassword({ email: identifier, password: signInPassword })
+      .then(({ error }) => {
+        if (error) {
+          setSignInError(error.message)
+          return
+        }
+        setSignInError('')
+        onNavigate(ADMIN_DASHBOARD_PATH)
+      })
   }
 
   const handleSignupFieldChange = (field, value) => {
@@ -536,8 +543,50 @@ const GetStartedPage = ({ authMode = 'signup', onAuthModeChange = () => {}, onNa
     })
   }
 
-  const handleSignupSubmit = (event) => {
+  const handleSupabaseSignup = async (event) => {
     event.preventDefault()
+    setSignUpError('')
+    setSignUpSuccess('')
+
+    const displayName = signupForm.displayName.trim()
+    const email = signupForm.email.trim()
+    const password = signupForm.password
+    const confirmPassword = signupForm.confirmPassword
+
+    if (!displayName || !email || !password || !confirmPassword) {
+      setSignUpError('Please complete all fields.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setSignUpError('Passwords do not match.')
+      return
+    }
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: displayName,
+          name: displayName,
+        },
+      },
+    })
+
+    if (error) {
+      setSignUpError(error.message)
+      return
+    }
+
+    setSignUpSuccess('Account created! Please check your email to confirm your account.')
+    setSignupForm((prev) => ({
+      ...prev,
+      displayName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    }))
   }
 
   return (
@@ -620,180 +669,65 @@ const GetStartedPage = ({ authMode = 'signup', onAuthModeChange = () => {}, onNa
                     </>
                   ) : (
                     <>
-                      <h1>{signupStep === 1 ? 'Personal Profile' : 'Create New Account'}</h1>
-                      <p>
-                        {signupStep === 1
-                          ? 'Complete your profile details for onboarding.'
-                          : 'Set up your account credentials before continuing.'}
-                      </p>
+                      <h1>Create New Account</h1>
+                      <p>Set up your account credentials before continuing.</p>
 
-                      <div className="get-started-stepper" aria-label="Sign up steps">
-                        <div className={`get-started-step-chip ${signupStep === 1 ? 'active' : ''}`}>
-                          <span>1</span>
-                          <strong>Profile</strong>
+                      <form className="get-started-form" onSubmit={handleSupabaseSignup}>
+                        <input
+                          type="text"
+                          placeholder="Display Name"
+                          aria-label="Display Name"
+                          value={signupForm.displayName}
+                          onChange={(event) => handleSignupFieldChange('displayName', event.target.value)}
+                        />
+                        <input
+                          type="email"
+                          placeholder="Email"
+                          aria-label="Email"
+                          value={signupForm.email}
+                          onChange={(event) => handleSignupFieldChange('email', event.target.value)}
+                        />
+                        <div className="sign-in-password-row">
+                          <input
+                            type={showSignUpPassword ? 'text' : 'password'}
+                            placeholder="Password"
+                            aria-label="Password"
+                            value={signupForm.password}
+                            onChange={(event) => handleSignupFieldChange('password', event.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="sign-in-eye-btn"
+                            aria-label={showSignUpPassword ? 'Hide password' : 'Show password'}
+                            onClick={() => setShowSignUpPassword((prev) => !prev)}
+                          >
+                            {showSignUpPassword ? <IconEyeOff /> : <IconEye />}
+                          </button>
                         </div>
-                        <div className="get-started-step-divider" />
-                        <div className={`get-started-step-chip ${signupStep === 2 ? 'active' : ''}`}>
-                          <span>2</span>
-                          <strong>Account</strong>
+                        <div className="sign-in-password-row">
+                          <input
+                            type={showSignUpConfirmPassword ? 'text' : 'password'}
+                            placeholder="Confirm Password"
+                            aria-label="Confirm Password"
+                            value={signupForm.confirmPassword}
+                            onChange={(event) => handleSignupFieldChange('confirmPassword', event.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="sign-in-eye-btn"
+                            aria-label={showSignUpConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                            onClick={() => setShowSignUpConfirmPassword((prev) => !prev)}
+                          >
+                            {showSignUpConfirmPassword ? <IconEyeOff /> : <IconEye />}
+                          </button>
                         </div>
-                      </div>
-
-                      <form className="get-started-form" onSubmit={handleSignupSubmit}>
-                        {signupStep === 1 ? (
-                          <>
-                            <div className="get-started-select-wrap">
-                              <select
-                                aria-label="Select Role"
-                                value={signupForm.role}
-                                onChange={(event) => handleSignupFieldChange('role', event.target.value)}
-                              >
-                                <option value="intern">Intern</option>
-                                <option value="employee">Employee</option>
-                              </select>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="Full Name"
-                              aria-label="Full Name"
-                              value={signupForm.fullName}
-                              onChange={(event) => handleSignupFieldChange('fullName', event.target.value)}
-                            />
-                            <input
-                              type="tel"
-                              placeholder="Contact Number"
-                              aria-label="Contact Number"
-                              value={signupForm.contactNumber}
-                              onChange={(event) => handleSignupFieldChange('contactNumber', event.target.value)}
-                              inputMode="numeric"
-                              maxLength={11}
-                            />
-                            {signupForm.role === 'intern' ? (
-                              <>
-                                <input
-                                  type="text"
-                                  placeholder="Course"
-                                  aria-label="Course"
-                                  value={signupForm.course}
-                                  onChange={(event) => handleSignupFieldChange('course', event.target.value)}
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="Required Internship Hours"
-                                  aria-label="Required Internship Hours"
-                                  value={signupForm.internshipHours}
-                                  onChange={(event) => handleSignupFieldChange('internshipHours', event.target.value)}
-                                />
-                                <select
-                                  aria-label="University"
-                                  value={signupForm.university}
-                                  onChange={(event) => handleSignupFieldChange('university', event.target.value)}
-                                >
-                                  <option value="">Select University</option>
-                                  {ADD_MEMBER_UNIVERSITIES.map((university) => (
-                                    <option key={university} value={university}>
-                                      {university}
-                                    </option>
-                                  ))}
-                                  <option value="others">Others</option>
-                                </select>
-                                {signupForm.university === 'others' ? (
-                                  <input
-                                    type="text"
-                                    placeholder="Type university name"
-                                    aria-label="Other University"
-                                    value={signupForm.customUniversity}
-                                    onChange={(event) => handleSignupFieldChange('customUniversity', event.target.value)}
-                                  />
-                                ) : null}
-                              </>
-                            ) : null}
-                          </>
-                        ) : (
-                          <>
-                            <input
-                              type="text"
-                              placeholder="Username"
-                              aria-label="Username"
-                              value={signupForm.username}
-                              onChange={(event) => handleSignupFieldChange('username', event.target.value)}
-                            />
-                            <input
-                              type="email"
-                              placeholder="Email"
-                              aria-label="Email"
-                              value={signupForm.email}
-                              onChange={(event) => handleSignupFieldChange('email', event.target.value)}
-                            />
-                            <div className="sign-in-password-row">
-                              <input
-                                type={showSignUpPassword ? 'text' : 'password'}
-                                placeholder="Password"
-                                aria-label="Password"
-                                value={signupForm.password}
-                                onChange={(event) => handleSignupFieldChange('password', event.target.value)}
-                              />
-                              <button
-                                type="button"
-                                className="sign-in-eye-btn"
-                                aria-label={showSignUpPassword ? 'Hide password' : 'Show password'}
-                                onClick={() => setShowSignUpPassword((prev) => !prev)}
-                              >
-                                {showSignUpPassword ? <IconEyeOff /> : <IconEye />}
-                              </button>
-                            </div>
-                            <div className="sign-in-password-row">
-                              <input
-                                type={showSignUpConfirmPassword ? 'text' : 'password'}
-                                placeholder="Confirm Password"
-                                aria-label="Confirm Password"
-                                value={signupForm.confirmPassword}
-                                onChange={(event) => handleSignupFieldChange('confirmPassword', event.target.value)}
-                              />
-                              <button
-                                type="button"
-                                className="sign-in-eye-btn"
-                                aria-label={showSignUpConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                                onClick={() => setShowSignUpConfirmPassword((prev) => !prev)}
-                              >
-                                {showSignUpConfirmPassword ? <IconEyeOff /> : <IconEye />}
-                              </button>
-                            </div>
-                          </>
-                        )}
+                        {signUpError ? <p className="get-started-error">{signUpError}</p> : null}
+                        {signUpSuccess ? <p className="get-started-success">{signUpSuccess}</p> : null}
 
                         <div className="get-started-form-actions">
-                          {signupStep === 2 ? (
-                            <button
-                              type="button"
-                              className="get-started-secondary-btn"
-                              onClick={() => setSignupStep(1)}
-                            >
-                              Previous
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="get-started-secondary-btn"
-                              onClick={() => onNavigate('/')}
-                            >
-                              Cancel
-                            </button>
-                          )}
-                          {signupStep === 1 ? (
-                            <button
-                              type="button"
-                              className="get-started-submit-btn"
-                              onClick={() => setSignupStep(2)}
-                            >
-                              Next
-                              <IconChevronRight size={18} />
-                            </button>
-                          ) : (
-                            <button type="submit" className="get-started-submit-btn">
-                              Sign up
-                            </button>
-                          )}
+                          <button type="submit" className="get-started-submit-btn">
+                            Sign up
+                          </button>
                         </div>
                       </form>
 
@@ -6950,6 +6884,8 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
   const [joinUsPending, setJoinUsPending] = useState(false)
   const [isJoinUsSubmitting, setIsJoinUsSubmitting] = useState(false)
   const [joinUsSubmitError, setJoinUsSubmitError] = useState('')
+  const [joinUsCvName, setJoinUsCvName] = useState('')
+  const cvInputRef = useRef(null)
   const countryRef = useRef(null)
   const ageRef = useRef(null)
 
@@ -7080,6 +7016,39 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
               const form = event.currentTarget
               const formData = new FormData(form)
               const cvFile = formData.get('cv')
+              let cvUrl = null
+              let cvFilename = null
+              let cvSize = null
+
+              if (cvFile && typeof cvFile === 'object' && cvFile.size > 0) {
+                const safeName = cvFile.name.replace(/[^a-z0-9.\-_]/gi, '_')
+                const filePath = `applications/${Date.now()}-${safeName}`
+                const { error: uploadError } = await supabase
+                  .storage
+                  .from('job-applications-cv')
+                  .upload(filePath, cvFile, { upsert: false })
+
+                if (uploadError) {
+                  console.error('Supabase upload failed', uploadError)
+                  const details = uploadError.message || uploadError.error_description || 'Upload failed.'
+                  setJoinUsSubmitError(`CV upload failed: ${details}`)
+                  setIsJoinUsSubmitting(false)
+                  return
+                }
+
+                const { data: publicUrlData, error: urlError } = await supabase
+  .storage
+  .from('job-applications-cv')
+  .getPublicUrl(filePath);
+
+if (urlError) {
+  console.error('Error fetching public URL', urlError);
+  setJoinUsSubmitError(`CV URL retrieval failed: ${urlError.message}`);
+  setIsJoinUsSubmitting(false);
+  return;
+}
+cvUrl = publicUrlData?.publicUrl || null;
+              }
 
               const payload = {
                 first_name: formData.get('firstName')?.toString().trim() || null,
@@ -7092,21 +7061,30 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                 position_applied: formData.get('positionApplied')?.toString() || null,
                 country: selectedCountry || null,
                 current_address: formData.get('currentAddress')?.toString().trim() || null,
-                cv_filename: cvFile && typeof cvFile === 'object' ? cvFile.name : null,
-                cv_size: cvFile && typeof cvFile === 'object' ? cvFile.size : null,
+                cv_filename: cvFilename,
+                cv_size: cvSize,
+                cv_url: cvUrl
               }
 
-              const { error } = await supabase.from('applications').insert(payload)
-              if (error) {
-                console.error('Supabase insert failed', error)
-                setJoinUsSubmitError('Submission failed. Please try again.')
-                setIsJoinUsSubmitting(false)
-                return
-              }
+              const { error } = await supabase
+  .from('job_applications')
+  .insert([payload])
+
+if (error) {
+  console.error('Supabase insert failed', error)
+  const details = error.message || error.error_description || 'Submission failed.'
+  setJoinUsSubmitError(`Submission failed: ${details}`)
+  setIsJoinUsSubmitting(false)
+  return
+}
 
               setJoinUsPending(true)
               setIsJoinUsSubmitting(false)
               form.reset()
+              setJoinUsCvName('')
+              if (cvInputRef.current) {
+                cvInputRef.current.value = ''
+              }
               setSelectedCountry('')
               setCountryOpen(false)
             }}
@@ -7261,10 +7239,45 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
               <label className="joinus-field joinus-field-full">
                 <span>Upload CV (PDF)</span>
                 <div className="joinus-upload">
-                  <input type="file" name="cv" accept="application/pdf" />
-                  <span>Click to upload or drag and drop</span>
+                  <input
+                    type="file"
+                    name="cv"
+                    accept="application/pdf"
+                    required
+                    ref={cvInputRef}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      setJoinUsCvName(file ? file.name : '')
+                    }}
+                  />
+                  <span>{joinUsCvName ? 'File selected' : 'Click to upload or drag and drop'}</span>
+                  <small className="joinus-upload-name">
+                    {joinUsCvName ? joinUsCvName : 'No file selected'}
+                  </small>
                   <small>PDF only (max. 10MB)</small>
                 </div>
+                {joinUsCvName ? (
+                  <div className="joinus-cv-chip" aria-label="Selected CV">
+                    <div className="joinus-cv-chip-icon" aria-hidden="true">PDF</div>
+                    <div className="joinus-cv-chip-copy">
+                      <strong title={joinUsCvName}>{joinUsCvName}</strong>
+                      <small>PDF</small>
+                    </div>
+                    <button
+                      type="button"
+                      className="joinus-cv-chip-remove"
+                      aria-label="Remove selected CV"
+                      onClick={() => {
+                        setJoinUsCvName('')
+                        if (cvInputRef.current) {
+                          cvInputRef.current.value = ''
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
               </label>
             </div>
 

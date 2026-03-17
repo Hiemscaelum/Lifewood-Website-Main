@@ -4032,6 +4032,72 @@ img {
   color: rgba(236, 242, 239, 0.55);
 }
 
+.joinus-upload-name {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(236, 242, 239, 0.82);
+}
+
+.joinus-cv-chip {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(10, 18, 14, 0.55);
+}
+
+.joinus-cv-chip-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #ff4d4f;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.joinus-cv-chip-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.joinus-cv-chip-copy strong {
+  display: block;
+  color: #f2f6f3;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.joinus-cv-chip-copy small {
+  display: block;
+  color: rgba(236, 242, 239, 0.65);
+  font-size: 11px;
+}
+
+.joinus-cv-chip-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f2f6f3;
+  cursor: pointer;
+}
+
+.joinus-cv-chip-remove:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .joinus-submit {
   margin-top: 20px;
   width: 100%;
@@ -4618,6 +4684,7 @@ img {
 .get-started-form {
   display: grid;
   gap: 12px;
+  margin-top: 10px;
 }
 
 .get-started-form input,
@@ -4678,7 +4745,7 @@ img {
 
 .get-started-form-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 18px;
   align-items: stretch;
@@ -4905,6 +4972,13 @@ img {
   margin: 2px 0 0;
   font-size: 12px;
   color: #b42318;
+  font-weight: 600;
+}
+
+.get-started-success {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #157f3d;
   font-weight: 600;
 }
 
