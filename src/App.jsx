@@ -1353,6 +1353,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [selectedEvaluationItem, setSelectedEvaluationItem] = useState(null)
   const [editingMemberId, setEditingMemberId] = useState(null)
   const [openMemberActionMenuId, setOpenMemberActionMenuId] = useState(null)
+  const [openApprovalHistoryActionMenuId, setOpenApprovalHistoryActionMenuId] = useState(null)
   const [notificationTab, setNotificationTab] = useState('view-all')
   const [isTableSearchOpen, setIsTableSearchOpen] = useState(false)
   const [isTableFilterOpen, setIsTableFilterOpen] = useState(false)
@@ -2095,6 +2096,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       }
       if (!event.target.closest('.admin-manage-row-actions')) {
         setOpenMemberActionMenuId(null)
+      }
+      if (!event.target.closest('.admin-approval-history-row-actions')) {
+        setOpenApprovalHistoryActionMenuId(null)
       }
     }
 
@@ -3001,13 +3005,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     const matchedUser = approvalQueue.find((user) => user.email === email || user.id === applicationId)
     const source = matchedUser || meta
     setPendingApprovalAction({
-      email,
+      email: source?.email || email || '',
       decision,
       applicationId: applicationId || matchedUser?.id || null,
       name: source?.name || 'Applicant',
       positionApplied: source?.positionApplied || source?.requestedRole || 'Applicant',
       requestedAt: source?.requestedAt || 'Recently',
-      email: source?.email || '',
       role: source?.requestedRole || source?.role || 'Applicant',
     })
   }
@@ -5408,21 +5411,43 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         {entry.decision === 'accepted' ? 'Accepted' : 'Declined'}
                       </p>
                       <p>{entry.time}</p>
-                      <div className="admin-history-action-group" aria-label="Approval history actions">
+                      <div className="admin-manage-row-actions admin-approval-history-row-actions">
                         <button
                           type="button"
-                          className="admin-history-action-btn"
-                          onClick={() => handleArchiveApprovalHistory(entry.id)}
+                          className="admin-dashboard-row-action"
+                          aria-label={`More actions for ${entry.name}`}
+                          aria-expanded={openApprovalHistoryActionMenuId === entry.id}
+                          onClick={() => setOpenApprovalHistoryActionMenuId((prev) => (prev === entry.id ? null : entry.id))}
                         >
-                          Archive
+                          <IconDotsVertical size={16} />
                         </button>
-                        <button
-                          type="button"
-                          className="admin-history-action-btn danger"
-                          onClick={() => handleDeleteApprovalHistory(entry.id)}
-                        >
-                          Delete
-                        </button>
+                        {openApprovalHistoryActionMenuId === entry.id ? (
+                          <div className="admin-dashboard-filter-menu admin-manage-row-menu" role="menu" aria-label={`Actions for ${entry.name}`}>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                handleArchiveApprovalHistory(entry.id)
+                                setOpenApprovalHistoryActionMenuId(null)
+                              }}
+                            >
+                              <IconDeviceFloppy size={16} />
+                              Archive
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="danger"
+                              onClick={() => {
+                                handleDeleteApprovalHistory(entry.id)
+                                setOpenApprovalHistoryActionMenuId(null)
+                              }}
+                            >
+                              <IconTrash size={16} />
+                              Delete
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     </article>
                   )) : (
