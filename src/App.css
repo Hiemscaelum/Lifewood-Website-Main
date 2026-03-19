@@ -10811,7 +10811,7 @@ html {
   border: 1px solid #e2e3de;
   border-radius: 18px;
   background: #f9faf9;
-  overflow: visible;
+  overflow: hidden;
   box-shadow: 0 2px 10px rgba(22, 43, 33, 0.05);
   position: relative;
   z-index: 3;
@@ -10837,6 +10837,8 @@ html {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
 }
 
 .admin-dashboard-table-head h2 {
@@ -11409,6 +11411,8 @@ html {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
 }
 
 .admin-dashboard-pagination-summary {
@@ -12532,9 +12536,9 @@ html {
 
 .admin-approval-history-columns {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 0.95fr) minmax(110px, 0.85fr) minmax(100px, 0.75fr) minmax(170px, 1fr);
+  grid-template-columns: minmax(180px, 1.35fr) minmax(210px, 1.25fr) minmax(130px, 0.9fr) minmax(150px, 1.05fr) minmax(120px, 0.7fr) minmax(80px, 0.45fr);
   align-items: center;
-  column-gap: 12px;
+  column-gap: 10px;
   min-height: 48px;
   padding: 0 16px;
   border-top: 1px solid #ecece2;
@@ -12555,9 +12559,9 @@ html {
   padding: 0 16px;
   border-top: 1px solid #efeee6;
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 0.95fr) minmax(110px, 0.85fr) minmax(100px, 0.75fr) minmax(170px, 1fr);
+  grid-template-columns: minmax(180px, 1.35fr) minmax(210px, 1.25fr) minmax(130px, 0.9fr) minmax(150px, 1.05fr) minmax(120px, 0.7fr) minmax(80px, 0.45fr);
   align-items: center;
-  column-gap: 12px;
+  column-gap: 10px;
   color: #56675f;
   background: #ffffff;
 }
@@ -13480,8 +13484,9 @@ html {
     grid-template-columns: 1.6fr 1fr minmax(130px, 1fr);
   }
 
-  .admin-approval-history-item > p:nth-of-type(2),
-  .admin-approval-history-item > p:nth-of-type(3) {
+  .admin-approval-history-item > p:nth-of-type(1),
+  .admin-approval-history-item > p:nth-of-type(3),
+  .admin-approval-history-item > p:nth-of-type(4) {
     display: none;
   }
 
@@ -14121,20 +14126,7 @@ html {
   box-shadow: 0 8px 16px rgba(44, 60, 70, 0.12);
 }
 
-.admin-detail-btn.download {
-  background: #1f5f43;
-  border-color: #1f5f43;
-  color: #ffffff;
-  box-shadow: 0 8px 14px rgba(31, 95, 67, 0.2);
-}
-
-.admin-detail-btn.download:hover {
-  background: #1a5138;
-  box-shadow: 0 12px 18px rgba(31, 95, 67, 0.26);
-  transform: translateY(-1px);
-}
-
-.admin-detail-btn.ghost:not(.download):not(.cancel):hover {
+.admin-detail-btn.ghost:not(.cancel):hover {
   background: #f4f6f2;
   box-shadow: 0 8px 16px rgba(19, 48, 32, 0.12);
   transform: translateY(-1px);

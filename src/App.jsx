@@ -1560,6 +1560,44 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       cvSize: data.cv_size ?? user.cvSize ?? null,
     })
   }
+
+  const fetchCvForSelectedUser = async (user) => {
+    if (!user) return { cvRef: '', cvFilename: 'cv.pdf' }
+    if (user.cvUrl) {
+      return {
+        cvRef: user.cvUrl,
+        cvFilename: user.cvFilename && user.cvFilename !== '—' ? user.cvFilename : 'cv.pdf',
+      }
+    }
+
+    const matchById = user.applicationId
+    if (!matchById && !user.email) {
+      return { cvRef: '', cvFilename: 'cv.pdf' }
+    }
+
+    const { data, error } = await supabase
+      .from('job_applications')
+      .select('cv_url, cv_filename, cv_size')
+      .eq(matchById ? 'id' : 'email', matchById ? user.applicationId : user.email)
+      .maybeSingle()
+
+    if (error || !data) {
+      console.warn('Failed to fetch CV details', error)
+      return { cvRef: '', cvFilename: 'cv.pdf' }
+    }
+
+    const updatedUser = {
+      ...user,
+      cvUrl: data.cv_url || '',
+      cvFilename: data.cv_filename || user.cvFilename || '—',
+      cvSize: data.cv_size ?? user.cvSize ?? null,
+    }
+    setSelectedDashboardUser(updatedUser)
+    return {
+      cvRef: updatedUser.cvUrl,
+      cvFilename: updatedUser.cvFilename && updatedUser.cvFilename !== '—' ? updatedUser.cvFilename : 'cv.pdf',
+    }
+  }
   const PAGE_SIZE = 5
   const MANAGE_PAGE_SIZE = 3
   const EVALUATION_PAGE_SIZE = 4
@@ -1970,7 +2008,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
     const loadApprovalHistory = async () => {
       const { data, error } = await supabase
-        .from('approval_history')
+        .from('approval_history_with_dates')
         .select('*')
         .order('decided_at', { ascending: false })
 
@@ -1982,14 +2020,18 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
       setApprovalHistory((data || []).map((entry) => {
         const decidedAt = entry.decided_at ? new Date(entry.decided_at) : null
+        const createdAt = entry.account_created_at ? new Date(entry.account_created_at) : null
+        const yearSource = decidedAt || createdAt
         return {
           id: entry.id,
+          applicationId: entry.application_id || null,
           name: entry.applicant_name || 'Applicant',
           email: entry.applicant_email || '—',
           role: entry.role || 'Applicant',
           decision: entry.decision || 'declined',
-          time: decidedAt ? 'Just now' : '—',
-          year: decidedAt ? String(decidedAt.getFullYear()) : String(new Date().getFullYear()),
+          accountCreated: createdAt ? formatAdminDate(createdAt) : '—',
+          decisionDate: decidedAt ? formatAdminDate(decidedAt) : '—',
+          year: yearSource ? String(yearSource.getFullYear()) : String(new Date().getFullYear()),
         }
       }))
     }
@@ -3249,6 +3291,18 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 	                      <small>Current Address</small>
 	                      <strong>{selectedDashboardUser.currentAddress || '—'}</strong>
 	                    </article>
+	                    {selectedDashboardUser.accountCreated ? (
+	                      <article>
+	                        <small>Account Created</small>
+	                        <strong>{selectedDashboardUser.accountCreated || '—'}</strong>
+	                      </article>
+	                    ) : null}
+	                    {selectedDashboardUser.decisionDate ? (
+	                      <article>
+	                        <small>Decision Date</small>
+	                        <strong>{selectedDashboardUser.decisionDate || '—'}</strong>
+	                      </article>
+	                    ) : null}
 	                  </div>
 	                  <div className="admin-detail-actions">
 	                    <button
@@ -3260,80 +3314,6 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 	                      }}
 	                    >
 	                      Cancel
-	                    </button>
-	                    <button
-	                      type="button"
-	                      className="admin-detail-btn primary"
-	                      onClick={async () => {
-	                        const cvRef = selectedDashboardUser.cvUrl
-	                        if (!cvRef) return
-	                        if (/^https?:\/\//i.test(cvRef)) {
-	                          window.open(cvRef, '_blank', 'noopener,noreferrer')
-	                          return
-	                        }
-
-	                        const { data, error } = await supabase
-	                          .storage
-	                          .from('job-applications-cv')
-	                          .createSignedUrl(cvRef, 60 * 10)
-
-	                        if (error) {
-	                          console.error('CV signed URL failed', error)
-	                          return
-	                        }
-
-	                        if (data?.signedUrl) {
-	                          window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
-	                        }
-	                      }}
-	                      disabled={!selectedDashboardUser.cvUrl}
-	                      aria-disabled={!selectedDashboardUser.cvUrl}
-	                    >
-	                      View CV
-	                    </button>
-	                    <button
-	                      type="button"
-	                      className="admin-detail-btn ghost download"
-	                      onClick={async () => {
-	                        const cvRef = selectedDashboardUser.cvUrl
-	                        if (!cvRef) return
-
-	                        const filename = selectedDashboardUser.cvFilename && selectedDashboardUser.cvFilename !== '—'
-	                          ? selectedDashboardUser.cvFilename
-	                          : 'cv.pdf'
-
-	                        try {
-	                          let fileBlob = null
-	                          if (/^https?:\/\//i.test(cvRef)) {
-	                            const response = await fetch(cvRef)
-	                            if (!response.ok) throw new Error('Failed to fetch CV file.')
-	                            fileBlob = await response.blob()
-	                          } else {
-	                            const { data, error } = await supabase
-	                              .storage
-	                              .from('job-applications-cv')
-	                              .download(cvRef)
-	                            if (error) throw error
-	                            fileBlob = data
-	                          }
-
-	                          if (!fileBlob) return
-	                          const objectUrl = URL.createObjectURL(fileBlob)
-	                          const link = document.createElement('a')
-	                          link.href = objectUrl
-	                          link.download = filename
-	                          document.body.appendChild(link)
-	                          link.click()
-	                          link.remove()
-	                          URL.revokeObjectURL(objectUrl)
-	                        } catch (error) {
-	                          console.error('CV download failed', error)
-	                        }
-	                      }}
-	                      disabled={!selectedDashboardUser.cvUrl}
-	                      aria-disabled={!selectedDashboardUser.cvUrl}
-	                    >
-	                      Download CV
 	                    </button>
 	                  </div>
 	                </div>
@@ -5392,7 +5372,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                   <span>User</span>
                   <span>Role</span>
                   <span>Status</span>
-                  <span>Date</span>
+                  <span>Account Created</span>
+                  <span>Decision Date</span>
                   <span>Actions</span>
                 </div>
 
@@ -5410,7 +5391,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                       <p className={`admin-approval-history-decision ${entry.decision}`}>
                         {entry.decision === 'accepted' ? 'Accepted' : 'Declined'}
                       </p>
-                      <p>{entry.time}</p>
+                      <p>{entry.accountCreated}</p>
+                      <p>{entry.decisionDate}</p>
                       <div className="admin-manage-row-actions admin-approval-history-row-actions">
                         <button
                           type="button"
@@ -5423,6 +5405,23 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         </button>
                         {openApprovalHistoryActionMenuId === entry.id ? (
                           <div className="admin-dashboard-filter-menu admin-manage-row-menu" role="menu" aria-label={`Actions for ${entry.name}`}>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                handleOpenUserDetail({
+                                  name: entry.name,
+                                  email: entry.email,
+                                  applicationId: entry.applicationId || null,
+                                  accountCreated: entry.accountCreated || '—',
+                                  decisionDate: entry.decisionDate || '—',
+                                })
+                                setOpenApprovalHistoryActionMenuId(null)
+                              }}
+                            >
+                              <IconEye size={16} />
+                              View details
+                            </button>
                             <button
                               type="button"
                               role="menuitem"
