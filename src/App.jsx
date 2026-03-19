@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { LayerGroup, LayersControl, MapContainer, Marker, TileLayer, Tooltip, ZoomControl, useMap } from 'react-leaflet'
-import { IconBrandLinkedin, IconBrandInstagram, IconBrandFacebook, IconBrandYoutube, IconBrandGoogle, IconBrandApple, IconBrandGithub, IconEye, IconEyeOff, IconLayoutDashboard, IconBook2, IconReport, IconChevronRight, IconLogout, IconMenu2, IconX, IconCamera, IconDeviceFloppy, IconSearch, IconBell, IconFilter, IconDotsVertical, IconUsers, IconUserPlus, IconUserCheck, IconUserX, IconUserEdit } from '@tabler/icons-react'
+import { IconBrandLinkedin, IconBrandInstagram, IconBrandFacebook, IconBrandYoutube, IconBrandGoogle, IconBrandApple, IconBrandGithub, IconEye, IconEyeOff, IconLayoutDashboard, IconBook2, IconReport, IconChevronRight, IconLogout, IconMenu2, IconX, IconCamera, IconDeviceFloppy, IconSearch, IconBell, IconFilter, IconDotsVertical, IconUsers, IconUserPlus, IconUserCheck, IconUserX, IconUserEdit, IconTrash } from '@tabler/icons-react'
 import L from 'leaflet'
 import LiquidEther from './LiquidEther'
 import FlowingMenu from './FlowingMenu'
@@ -18,25 +18,53 @@ const OFFER_PANEL_IMAGES = [
   'https://framerusercontent.com/images/m7OC7BU1eSVf04CkU0jmNPRkf8.png?width=1024&height=1024',
   'https://framerusercontent.com/images/iI5MBUQ9ctQdcDHjCLNvD4j4kxc.png?width=1024&height=1024',
 ]
+const COUNTRIES = [
+  'Argentina',
+  'Australia',
+  'Bangladesh',
+  'Brazil',
+  'Canada',
+  'Chile',
+  'China',
+  'Colombia',
+  'Denmark',
+  'Egypt',
+  'France',
+  'Germany',
+  'Hong Kong',
+  'India',
+  'Indonesia',
+  'Ireland',
+  'Italy',
+  'Japan',
+  'Kenya',
+  'Kuwait',
+  'Malaysia',
+  'Mexico',
+  'Netherlands',
+  'New Zealand',
+  'Nigeria',
+  'Norway',
+  'Pakistan',
+  'Peru',
+  'Philippines',
+  'Qatar',
+  'Saudi Arabia',
+  'Singapore',
+  'South Africa',
+  'South Korea',
+  'Spain',
+  'Sweden',
+  'Taiwan',
+  'Thailand',
+  'United Arab Emirates',
+  'United Kingdom',
+  'United States',
+  'Vietnam',
+]
 const INTERN_DASHBOARD_PATH = '/dashboard'
 const ADMIN_DASHBOARD_PATH = '/admin-dashboard'
-const ADD_MEMBER_UNIVERSITIES = [
-  'University of San Carlos',
-  'University of San Jose–Recoletos',
-  'University of the Visayas',
-  'Cebu Normal University',
-  'Cebu Technological University',
-  'Southwestern University PHINMA',
-  'Cebu Institute of Technology – University',
-  'University of Southern Philippines Foundation',
-  'University of the Philippines Cebu',
-  'Asian College of Technology',
-  'University of Cebu Main Campus',
-  'University of Cebu Banilad',
-  'University of Cebu Lapu-Lapu and Mandaue',
-  'University of Cebu Pardo–Talisay',
-]
-
+const CAREERS_URL = 'http://localhost:5173/careers'
 const formatAdminDate = (dateValue) => dateValue.toLocaleDateString('en-US', {
   month: 'short',
   day: '2-digit',
@@ -53,17 +81,17 @@ const getRoleOptionFromLabel = (role = '') => {
 }
 
 const getInitialAddMemberFormState = () => ({
-  role: 'intern',
-  fullName: '',
+  firstName: '',
+  lastName: '',
+  gender: '',
+  age: '',
+  phoneCountryCode: '+63',
+  phoneNumber: '',
   email: '',
-  contactNumber: '',
-  course: '',
-  internshipHours: '',
-  university: '',
-  customUniversity: '',
-  username: '',
-  password: '',
-  confirmPassword: '',
+  positionApplied: '',
+  country: '',
+  currentAddress: '',
+  cvFile: null,
 })
 
 const getInitialEvaluationFormState = () => ({
@@ -106,6 +134,8 @@ const getVisiblePageNumbers = (currentPage, totalPages, maxVisible = 3) => {
 
   return Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index)
 }
+
+const getRoleLabel = (value = '') => value.split('(')[0].trim()
 
 
 // Logo component
@@ -422,10 +452,6 @@ const GetStartedPage = ({ authMode = 'signup', onAuthModeChange = () => {}, onNa
     fullName: '',
     contactNumber: '',
     role: 'intern',
-    course: '',
-    internshipHours: '',
-    university: '',
-    customUniversity: '',
   })
 
   const handleSignIn = (event) => {
@@ -458,13 +484,6 @@ const GetStartedPage = ({ authMode = 'signup', onAuthModeChange = () => {}, onNa
       const nextForm = {
         ...prev,
         [field]: field === 'contactNumber' ? normalizeContactNumber(value) : value,
-      }
-
-      if (field === 'role' && value !== 'intern') {
-        nextForm.course = ''
-        nextForm.internshipHours = ''
-        nextForm.university = ''
-        nextForm.customUniversity = ''
       }
 
       return nextForm
@@ -1329,6 +1348,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [isAdminUserMenuOpen, setIsAdminUserMenuOpen] = useState(false)
   const [isAdminNotificationOpen, setIsAdminNotificationOpen] = useState(false)
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false)
+  const [isAddMemberSuccessOpen, setIsAddMemberSuccessOpen] = useState(false)
   const [selectedDashboardUser, setSelectedDashboardUser] = useState(null)
   const [selectedEvaluationItem, setSelectedEvaluationItem] = useState(null)
   const [editingMemberId, setEditingMemberId] = useState(null)
@@ -1345,6 +1365,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [isEvaluationHistoryFilterOpen, setIsEvaluationHistoryFilterOpen] = useState(false)
   const [isAnalyticsSearchOpen, setIsAnalyticsSearchOpen] = useState(false)
   const [isAnalyticsFilterOpen, setIsAnalyticsFilterOpen] = useState(false)
+  const [isAdminCountryOpen, setIsAdminCountryOpen] = useState(false)
   const [evaluationSearchQuery, setEvaluationSearchQuery] = useState('')
   const [approvalSearchQuery, setApprovalSearchQuery] = useState('')
   const [approvalSortMode, setApprovalSortMode] = useState('all')
@@ -1367,13 +1388,18 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [tableRoleFilter, setTableRoleFilter] = useState('all')
   const [tableSearchQuery, setTableSearchQuery] = useState('')
   const [manageUsers, setManageUsers] = useState([])
+  const [pendingApprovalAction, setPendingApprovalAction] = useState(null)
+  const [pendingRemoveMember, setPendingRemoveMember] = useState(null)
+  const [approvalToast, setApprovalToast] = useState(null)
+  const [memberDeleteToast, setMemberDeleteToast] = useState(null)
+  const [authSession, setAuthSession] = useState(null)
+  const [isAuthReady, setIsAuthReady] = useState(false)
   const [applications, setApplications] = useState([])
   const [applicationsError, setApplicationsError] = useState('')
   const [isApplicationsLoading, setIsApplicationsLoading] = useState(false)
   const [evaluationRecords, setEvaluationRecords] = useState({})
   const [evaluationForm, setEvaluationForm] = useState(() => getInitialEvaluationFormState())
   const [evaluationFeedback, setEvaluationFeedback] = useState('')
-  const [addMemberStep, setAddMemberStep] = useState(1)
   const [addMemberForm, setAddMemberForm] = useState(() => getInitialAddMemberFormState())
   const [addMemberError, setAddMemberError] = useState('')
   const [approvalHistory, setApprovalHistory] = useState([])
@@ -1393,6 +1419,146 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const approvalHistoryFilterRef = useRef(null)
   const evaluationHistoryFilterRef = useRef(null)
   const analyticsFilterRef = useRef(null)
+  const adminCountryRef = useRef(null)
+
+  const mapUserRowToManageUser = (user) => {
+    const nameParts = (user.full_name || '').split(/\s+/).filter(Boolean)
+    const firstInitial = nameParts[0]?.charAt(0) || ''
+    const lastInitial = nameParts[nameParts.length - 1]?.charAt(0) || firstInitial
+    const createdAt = user.created_at ? new Date(user.created_at) : null
+
+    return {
+      id: user.id,
+      applicationId: user.application_id || null,
+      initials: `${firstInitial}${lastInitial}`.toUpperCase() || 'NA',
+      name: user.full_name || 'Applicant',
+      email: user.email || '—',
+      role: user.role || 'Applicant',
+      access: user.role || 'Applicant',
+      status: user.status || 'active',
+      createdAt: user.created_at || null,
+      joined: user.created_at ? user.created_at.slice(0, 10) : '—',
+      contactNumber: user.phone_number || user.phone || '—',
+      phoneCountryCode: user.phone_country_code || '',
+      gender: user.gender || '—',
+      age: user.age ?? '—',
+      country: user.country || '—',
+      currentAddress: user.current_address || '—',
+      positionApplied: user.position_applied || '—',
+      cvUrl: user.cv_url || '',
+      cvFilename: user.cv_filename || '—',
+      cvSize: user.cv_size ?? null,
+      course: '—',
+      internshipHours: '—',
+      university: '—',
+      activity: 'Active',
+      onboarding: createdAt ? formatAdminDate(createdAt) : '—',
+      verified: true,
+      username: user.username || (user.email ? user.email.split('@')[0] : '—'),
+    }
+  }
+
+  const fetchUsers = async () => {
+    if (!authSession) return []
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.warn('Failed to load users with deleted_at filter, retrying without it.', error)
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (fallbackError) {
+        console.error('Failed to load users', fallbackError)
+        return []
+      }
+
+      const mappedFallback = (fallbackData || []).map(mapUserRowToManageUser)
+      setManageUsers(mappedFallback)
+      return mappedFallback
+    }
+
+    const mapped = (data || []).map(mapUserRowToManageUser)
+    setManageUsers(mapped)
+    return mapped
+  }
+
+  const handleOpenUserDetail = async (user) => {
+    if (!user) return
+    const hasCoreDetails = user.gender && user.gender !== '—'
+      && user.age && user.age !== '—'
+      && user.country && user.country !== '—'
+      && user.currentAddress && user.currentAddress !== '—'
+      && user.positionApplied && user.positionApplied !== '—'
+    const hasCv = Boolean(user.cvUrl)
+
+    if (hasCoreDetails && hasCv) {
+      setSelectedDashboardUser(user)
+      return
+    }
+
+    const matchById = user.applicationId
+    const { data, error } = await supabase
+      .from('job_applications')
+      .select('id, gender, age, country, current_address, position_applied, cv_url, cv_filename, cv_size, phone_number, phone_country_code')
+      .eq(matchById ? 'id' : 'email', matchById ? user.applicationId : user.email)
+      .is('deleted_at', null)
+      .maybeSingle()
+
+    if (error) {
+      console.warn('Failed to load application details with deleted_at filter, retrying without it.', error)
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('job_applications')
+        .select('id, gender, age, country, current_address, position_applied, cv_url, cv_filename, cv_size, phone_number, phone_country_code')
+        .eq(matchById ? 'id' : 'email', matchById ? user.applicationId : user.email)
+        .maybeSingle()
+      if (fallbackError) {
+        console.error('Failed to load application details', fallbackError)
+        setSelectedDashboardUser(user)
+        return
+      }
+      if (!fallbackData) {
+        setSelectedDashboardUser(user)
+        return
+      }
+      setSelectedDashboardUser({
+        ...user,
+        gender: fallbackData.gender || user.gender,
+        age: fallbackData.age ?? user.age,
+        country: fallbackData.country || user.country,
+        currentAddress: fallbackData.current_address || user.currentAddress,
+        positionApplied: fallbackData.position_applied || user.positionApplied,
+        cvUrl: fallbackData.cv_url || user.cvUrl,
+        cvFilename: fallbackData.cv_filename || user.cvFilename,
+        cvSize: fallbackData.cv_size ?? user.cvSize,
+      })
+      return
+    }
+
+    if (!data) {
+      setSelectedDashboardUser(user)
+      return
+    }
+
+    setSelectedDashboardUser({
+      ...user,
+      gender: data.gender || user.gender || '—',
+      age: data.age ?? user.age ?? '—',
+      country: data.country || user.country || '—',
+      currentAddress: data.current_address || user.currentAddress || '—',
+      positionApplied: data.position_applied || user.positionApplied || '—',
+      contactNumber: data.phone_number || user.contactNumber || '—',
+      phoneCountryCode: data.phone_country_code || user.phoneCountryCode || '',
+      cvUrl: data.cv_url || user.cvUrl || '',
+      cvFilename: data.cv_filename || user.cvFilename || '—',
+      cvSize: data.cv_size ?? user.cvSize ?? null,
+    })
+  }
   const PAGE_SIZE = 5
   const MANAGE_PAGE_SIZE = 3
   const EVALUATION_PAGE_SIZE = 4
@@ -1530,6 +1696,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       phoneCountryCode: application.phone_country_code || '',
       initials: initialsBase || 'NA',
       requestedRole: application.position_applied || 'Applicant',
+      requestedRoleLabel: getRoleLabel(application.position_applied || ''),
       contactNumber: phone || '—',
       positionApplied: application.position_applied || '—',
       country: application.country || '—',
@@ -1606,6 +1773,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const previousNotifications = tabFilteredNotifications.filter((item) => item.section === 'previous')
   const unreadNotificationCount = notifications.filter((item) => !item.read).length
   const activeMembersCount = manageUsers.filter((user) => user.status === 'active').length
+  const totalUsersCount = manageUsers.length
+  const verifiedUsersCount = manageUsers.filter((user) => user.status === 'active').length
+  const inactiveUsersCount = manageUsers.filter((user) => user.status !== 'active').length
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
+  const newSignupsCount = manageUsers.filter((user) => {
+    if (!user.createdAt) return false
+    return Date.now() - new Date(user.createdAt).getTime() <= thirtyDaysMs
+  }).length
   const pendingApprovalCount = approvalQueue.length
   const pendingInternApprovals = approvalQueue.filter((user) => user.requestedRole === 'Intern').length
   const pendingEmployeeApprovals = approvalQueue.filter((user) => user.requestedRole === 'Employee').length
@@ -1735,7 +1910,32 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   ]
 
   useEffect(() => {
+    let isMounted = true
+    const initAuth = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (!isMounted) return
+      setAuthSession(data.session || null)
+      setIsAuthReady(true)
+    }
+    initAuth()
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthSession(session || null)
+      setIsAuthReady(true)
+    })
+    return () => {
+      isMounted = false
+      authListener?.subscription?.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
     if (adminActivePanel !== 'user-approval') return
+    if (!isAuthReady) return
+    if (!authSession) {
+      setApplicationsError('Please sign in to load approvals.')
+      setApplications([])
+      return
+    }
     let isMounted = true
     const loadApplications = async () => {
       setIsApplicationsLoading(true)
@@ -1743,23 +1943,132 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       const { data, error } = await supabase
         .from('job_applications')
         .select('*')
+        .eq('status', 'pending')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
       if (!isMounted) return
       if (error) {
-        console.error('Failed to load applications', error)
-        setApplicationsError('Unable to load applications.')
-        setApplications([])
+        console.warn('Failed to load applications with deleted_at filter, retrying without it.', error)
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('job_applications')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+        if (fallbackError) {
+          console.error('Failed to load applications', fallbackError)
+          setApplicationsError('Unable to load applications.')
+          setApplications([])
+        } else {
+          setApplications(fallbackData || [])
+        }
       } else {
         setApplications(data || [])
       }
       setIsApplicationsLoading(false)
     }
 
+    const loadApprovalHistory = async () => {
+      const { data, error } = await supabase
+        .from('approval_history')
+        .select('*')
+        .order('decided_at', { ascending: false })
+
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load approval history', error)
+        return
+      }
+
+      setApprovalHistory((data || []).map((entry) => {
+        const decidedAt = entry.decided_at ? new Date(entry.decided_at) : null
+        return {
+          id: entry.id,
+          name: entry.applicant_name || 'Applicant',
+          email: entry.applicant_email || '—',
+          role: entry.role || 'Applicant',
+          decision: entry.decision || 'declined',
+          time: decidedAt ? 'Just now' : '—',
+          year: decidedAt ? String(decidedAt.getFullYear()) : String(new Date().getFullYear()),
+        }
+      }))
+    }
+
     loadApplications()
+    loadApprovalHistory()
     return () => {
       isMounted = false
     }
-  }, [adminActivePanel])
+  }, [adminActivePanel, authSession, isAuthReady])
+
+  useEffect(() => {
+    let isMounted = true
+    const loadUsers = async () => {
+      if (!isAuthReady) return
+      if (!authSession) {
+        if (!isMounted) return
+        setManageUsers([])
+        return
+      }
+      const data = await fetchUsers()
+      if (!isMounted) return
+      if (!data.length) return
+    }
+
+    loadUsers()
+    return () => {
+      isMounted = false
+    }
+  }, [authSession, isAuthReady])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('job-applications-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'job_applications' },
+        (payload) => {
+          const application = payload.new
+          if (application?.status && application.status !== 'pending') return
+
+          const firstName = application?.first_name || ''
+          const lastName = application?.last_name || ''
+          const name = `${firstName} ${lastName}`.trim() || 'Applicant'
+          const position = application?.position_applied || 'an open role'
+
+          setNotifications((prev) => {
+            if (prev.some((item) => item.id === `approval-${application.id}`)) {
+              return prev
+            }
+            return [
+              {
+                id: `approval-${application.id}`,
+                type: 'approval',
+                section: 'current',
+                status: 'new',
+                title: 'New approval request',
+                description: `${name} submitted an application for ${position}.`,
+                time: 'Just now',
+                read: false,
+                email: application?.email || '',
+                applicationId: application?.id || null,
+                name,
+                requestedRole: application?.position_applied || 'Applicant',
+                positionApplied: application?.position_applied || 'Applicant',
+                requestedAt: application?.created_at
+                  ? new Date(application.created_at).toLocaleDateString()
+                  : 'Recently',
+              },
+              ...prev,
+            ]
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -1854,6 +2163,17 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   }, [isAnalyticsSearchOpen])
 
   useEffect(() => {
+    if (!isAdminCountryOpen) return undefined
+    const handleClickOutside = (event) => {
+      if (adminCountryRef.current && !adminCountryRef.current.contains(event.target)) {
+        setIsAdminCountryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isAdminCountryOpen])
+
+  useEffect(() => {
     if (!isAddMemberModalOpen && !selectedDashboardUser && !selectedEvaluationItem) return undefined
     const { overflow } = document.body.style
     document.body.style.overflow = 'hidden'
@@ -1862,18 +2182,19 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     }
   }, [isAddMemberModalOpen, selectedDashboardUser, selectedEvaluationItem])
 
+  useEffect(() => {
+    if (!isAddMemberSuccessOpen) return undefined
+    const timeout = setTimeout(() => {
+      setIsAddMemberSuccessOpen(false)
+    }, 3000)
+    return () => clearTimeout(timeout)
+  }, [isAddMemberSuccessOpen])
+
   const handleAddMemberFieldChange = (field, value) => {
     setAddMemberForm((prev) => {
       const nextForm = {
         ...prev,
-        [field]: field === 'contactNumber' ? normalizeContactNumber(value) : value,
-      }
-
-      if (field === 'role' && value !== 'intern') {
-        nextForm.course = ''
-        nextForm.internshipHours = ''
-        nextForm.university = ''
-        nextForm.customUniversity = ''
+        [field]: field === 'phoneNumber' ? normalizeContactNumber(value) : value,
       }
 
       return nextForm
@@ -1887,39 +2208,40 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const handleCloseAddMemberModal = () => {
     setIsAddMemberModalOpen(false)
     setEditingMemberId(null)
-    setAddMemberStep(1)
     setAddMemberError('')
+    setIsAdminCountryOpen(false)
     setAddMemberForm(getInitialAddMemberFormState())
   }
 
   const handleOpenAddMemberModal = () => {
     setEditingMemberId(null)
     setOpenMemberActionMenuId(null)
-    setAddMemberStep(1)
     setAddMemberError('')
+    setIsAdminCountryOpen(false)
     setAddMemberForm(getInitialAddMemberFormState())
     setIsAddMemberModalOpen(true)
   }
 
   const handleEditMember = (member) => {
-    const matchedUniversity = ADD_MEMBER_UNIVERSITIES.includes(member.university) ? member.university : ''
-    const isOtherUniversity = member.role === 'Intern' && member.university !== '—' && !matchedUniversity
+    const nameParts = (member.name || '').split(/\s+/).filter(Boolean)
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ')
     setEditingMemberId(member.id)
     setOpenMemberActionMenuId(null)
-    setAddMemberStep(1)
     setAddMemberError('')
+    setIsAdminCountryOpen(false)
     setAddMemberForm({
-      role: getRoleOptionFromLabel(member.role),
-      fullName: member.name,
+      firstName,
+      lastName,
+      gender: member.gender && member.gender !== '—' ? member.gender : '',
+      age: member.age && member.age !== '—' ? String(member.age) : '',
+      phoneCountryCode: member.phoneCountryCode || '+63',
+      phoneNumber: member.contactNumber === '—' ? '' : member.contactNumber,
       email: member.email,
-      contactNumber: member.contactNumber === '—' ? '' : member.contactNumber,
-      course: member.course === '—' ? '' : member.course,
-      internshipHours: member.internshipHours === '—' ? '' : member.internshipHours,
-      university: member.role === 'Intern' ? (isOtherUniversity ? 'others' : matchedUniversity) : '',
-      customUniversity: isOtherUniversity ? member.university : '',
-      username: member.username || member.email.split('@')[0],
-      password: '',
-      confirmPassword: '',
+      positionApplied: member.positionApplied === '—' ? '' : member.positionApplied,
+      country: member.country === '—' ? '' : member.country,
+      currentAddress: member.currentAddress === '—' ? '' : member.currentAddress,
+      cvFile: null,
     })
     setIsAddMemberModalOpen(true)
   }
@@ -1930,66 +2252,169 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setManageCurrentPage((prev) => Math.max(1, prev))
   }
 
-  const handleAddMemberNextStep = () => {
-    const trimmedName = addMemberForm.fullName.trim()
-    const trimmedContact = addMemberForm.contactNumber.trim()
-    const trimmedCourse = addMemberForm.course.trim()
-    const trimmedHours = addMemberForm.internshipHours.trim()
-    const trimmedUniversity = (addMemberForm.university === 'others'
-      ? addMemberForm.customUniversity
-      : addMemberForm.university).trim()
-
-    if (!trimmedName || !trimmedContact) {
-      setAddMemberError('Full name and contact number are required.')
-      return
-    }
-
-    if (addMemberForm.role === 'intern' && (!trimmedCourse || !trimmedHours || !trimmedUniversity)) {
-      setAddMemberError('Course, internship hours, and university are required for interns.')
-      return
-    }
-
-    setAddMemberError('')
-    setAddMemberStep(2)
+  const handleRequestRemoveMember = (member) => {
+    setOpenMemberActionMenuId(null)
+    setPendingRemoveMember(member)
   }
 
-  const handleAddMemberSubmit = (event) => {
+  const handleCancelRemoveMember = () => {
+    setPendingRemoveMember(null)
+  }
+
+  const handleConfirmRemoveMember = async () => {
+    if (!pendingRemoveMember) return
+    const targetId = pendingRemoveMember.id
+    const targetEmail = pendingRemoveMember.email
+    const targetApplicationId = pendingRemoveMember.applicationId
+    const deleteLabel = pendingRemoveMember.name || 'member'
+    const deletedAt = new Date().toISOString()
+
+    if (targetApplicationId) {
+      const { data: applicationData, error: applicationError } = await supabase
+        .from('job_applications')
+        .update({ deleted_at: deletedAt })
+        .eq('id', targetApplicationId)
+        .select('id')
+      if (applicationError || !applicationData?.length) {
+        console.warn('Soft delete failed for application, falling back to hard delete.', applicationError)
+        const { data: hardDeleteData, error: hardDeleteError } = await supabase
+          .from('job_applications')
+          .delete()
+          .eq('id', targetApplicationId)
+          .select('id')
+        if (hardDeleteError || !hardDeleteData?.length) {
+          console.error('Failed to delete application', hardDeleteError)
+          setMemberDeleteToast({
+            id: Date.now(),
+            status: 'failed',
+            message: hardDeleteError?.message || 'Unable to delete application.',
+          })
+          setTimeout(() => {
+            setMemberDeleteToast((prev) => (prev && prev.status === 'failed' ? null : prev))
+          }, 3000)
+          setPendingRemoveMember(null)
+          return
+        }
+      }
+    } else if (targetEmail) {
+      const { data: applicationData, error: applicationError } = await supabase
+        .from('job_applications')
+        .update({ deleted_at: deletedAt })
+        .eq('email', targetEmail)
+        .select('id')
+      if (applicationError || !applicationData?.length) {
+        console.warn('Soft delete failed for application by email, falling back to hard delete.', applicationError)
+        const { data: hardDeleteData, error: hardDeleteError } = await supabase
+          .from('job_applications')
+          .delete()
+          .eq('email', targetEmail)
+          .select('id')
+        if (hardDeleteError || !hardDeleteData?.length) {
+          console.error('Failed to delete application by email', hardDeleteError)
+          setMemberDeleteToast({
+            id: Date.now(),
+            status: 'failed',
+            message: hardDeleteError?.message || 'Unable to delete application.',
+          })
+          setTimeout(() => {
+            setMemberDeleteToast((prev) => (prev && prev.status === 'failed' ? null : prev))
+          }, 3000)
+          setPendingRemoveMember(null)
+          return
+        }
+      }
+    }
+
+    const { data: deleteData, error } = await supabase
+      .from('users')
+      .update({ deleted_at: deletedAt })
+      .eq('id', targetId)
+      .select('id')
+
+    if (error || !deleteData?.length) {
+      console.error('Failed to delete member', error)
+      setMemberDeleteToast({
+        id: Date.now(),
+        status: 'failed',
+        message: error?.message || 'Unable to delete member.',
+      })
+      setTimeout(() => {
+        setMemberDeleteToast((prev) => (prev && prev.status === 'failed' ? null : prev))
+      }, 3000)
+      setPendingRemoveMember(null)
+      return
+    }
+
+    handleDeleteMember(targetId)
+    if (targetEmail) {
+      setManageUsers((prev) => prev.filter((user) => user.email !== targetEmail))
+    }
+    await fetchUsers()
+    setMemberDeleteToast({
+      id: Date.now(),
+      status: 'deleted',
+      memberId: targetId,
+      message: `Deleted ${deleteLabel}.`,
+    })
+    setTimeout(() => {
+      setMemberDeleteToast((prev) => (prev && prev.status === 'deleted' ? null : prev))
+    }, 3000)
+    setPendingRemoveMember(null)
+  }
+
+  const handleRestoreMember = async () => {
+    if (!memberDeleteToast?.memberId) return
+    const restoreId = memberDeleteToast.memberId
+    setMemberDeleteToast((prev) => (prev ? { ...prev, status: 'restoring', message: 'Restoring member...' } : prev))
+    const { error } = await supabase
+      .from('users')
+      .update({ deleted_at: null })
+      .eq('id', restoreId)
+
+    if (error) {
+      console.error('Failed to restore member', error)
+      setMemberDeleteToast({
+        id: Date.now(),
+        status: 'failed',
+        message: error.message || 'Unable to restore member.',
+      })
+      setTimeout(() => {
+        setMemberDeleteToast((prev) => (prev && prev.status === 'failed' ? null : prev))
+      }, 3000)
+      return
+    }
+
+    await fetchUsers()
+    setMemberDeleteToast({
+      id: Date.now(),
+      status: 'restored',
+      message: 'Member restored.',
+    })
+    setTimeout(() => {
+      setMemberDeleteToast((prev) => (prev && prev.status === 'restored' ? null : prev))
+    }, 3000)
+  }
+
+  const handleAddMemberSubmit = async (event) => {
     event.preventDefault()
 
-    const trimmedName = addMemberForm.fullName.trim()
+    const trimmedFirstName = addMemberForm.firstName.trim()
+    const trimmedLastName = addMemberForm.lastName.trim()
     const trimmedEmail = addMemberForm.email.trim().toLowerCase()
-    const trimmedContact = addMemberForm.contactNumber.trim()
-    const trimmedCourse = addMemberForm.course.trim()
-    const trimmedHours = addMemberForm.internshipHours.trim()
-    const trimmedUniversity = (addMemberForm.university === 'others'
-      ? addMemberForm.customUniversity
-      : addMemberForm.university).trim()
-    const trimmedUsername = addMemberForm.username.trim()
-    const trimmedPassword = addMemberForm.password.trim()
-    const trimmedConfirmPassword = addMemberForm.confirmPassword.trim()
+    const trimmedPhone = addMemberForm.phoneNumber.trim()
+    const trimmedCountryCode = addMemberForm.phoneCountryCode.trim()
+    const trimmedPosition = addMemberForm.positionApplied.trim()
+    const trimmedCountry = addMemberForm.country.trim()
+    const trimmedAddress = addMemberForm.currentAddress.trim()
+    const numericAge = addMemberForm.age ? Number(addMemberForm.age) : null
 
-    if (!trimmedName || !trimmedContact) {
-      setAddMemberError('Full name and contact number are required.')
+    if (!trimmedFirstName || !trimmedLastName || !trimmedPhone) {
+      setAddMemberError('First name, last name, and contact number are required.')
       return
     }
 
-    if (addMemberForm.role === 'intern' && (!trimmedCourse || !trimmedHours || !trimmedUniversity)) {
-      setAddMemberError('Course, internship hours, and university are required for interns.')
-      return
-    }
-
-    if (!trimmedUsername || !trimmedEmail) {
-      setAddMemberError('Username and email are required.')
-      return
-    }
-
-    if (!editingMemberId && (!trimmedPassword || !trimmedConfirmPassword)) {
-      setAddMemberError('Password and confirm password are required for new members.')
-      return
-    }
-
-    if ((trimmedPassword || trimmedConfirmPassword) && trimmedPassword !== trimmedConfirmPassword) {
-      setAddMemberError('Password and confirm password must match.')
+    if (!trimmedEmail) {
+      setAddMemberError('Email is required.')
       return
     }
 
@@ -1998,42 +2423,116 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       return
     }
 
-    const nameParts = trimmedName.split(/\s+/).filter(Boolean)
-    const firstInitial = nameParts[0]?.charAt(0) || ''
-    const lastInitial = nameParts[nameParts.length - 1]?.charAt(0) || firstInitial
-    const roleLabel = addMemberForm.role === 'intern'
-      ? 'Intern'
-      : addMemberForm.role === 'employee'
-        ? 'Employee'
-        : 'Admin'
-    const addedDate = new Date()
-    const newMember = {
-      id: editingMemberId || `member-${Date.now()}`,
-      initials: `${firstInitial}${lastInitial}`.toUpperCase(),
-      name: trimmedName,
-      email: trimmedEmail,
-      role: roleLabel,
-      access: roleLabel,
-      status: 'active',
-      joined: addedDate.toISOString().slice(0, 10),
-      contactNumber: trimmedContact,
-      course: addMemberForm.role === 'intern' ? trimmedCourse : '—',
-      internshipHours: addMemberForm.role === 'intern' ? trimmedHours : '—',
-      university: addMemberForm.role === 'intern' ? trimmedUniversity : '—',
-      activity: 'Just now',
-      onboarding: formatAdminDate(addedDate),
-      verified: true,
-      username: trimmedUsername,
+    let cvFilename = null
+    let cvUrl = null
+    let cvSize = null
+
+    if (addMemberForm.cvFile) {
+      const safeName = addMemberForm.cvFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const filePath = `applications/${Date.now()}-${safeName}`
+      const { error: uploadError } = await supabase
+        .storage
+        .from('job-applications-cv')
+        .upload(filePath, addMemberForm.cvFile, { upsert: true })
+
+      if (uploadError) {
+        console.error('CV upload failed', uploadError)
+        setAddMemberError('CV upload failed. Please try again.')
+        return
+      }
+
+      cvFilename = addMemberForm.cvFile.name
+      cvSize = addMemberForm.cvFile.size
+      cvUrl = filePath
     }
 
-    setManageUsers((prev) => {
-      if (editingMemberId) {
-        return prev.map((user) => (user.id === editingMemberId ? { ...user, ...newMember } : user))
+    const fullName = `${trimmedFirstName} ${trimmedLastName}`.trim()
+    const roleLabel = trimmedPosition || 'Applicant'
+    const applicationPayload = {
+      first_name: trimmedFirstName || null,
+      last_name: trimmedLastName || null,
+      gender: addMemberForm.gender || null,
+      age: Number.isFinite(numericAge) ? numericAge : null,
+      phone_country_code: trimmedCountryCode || null,
+      phone_number: trimmedPhone || null,
+      email: trimmedEmail || null,
+      position_applied: trimmedPosition || null,
+      country: trimmedCountry || null,
+      current_address: trimmedAddress || null,
+      cv_filename: cvFilename,
+      cv_size: cvSize,
+      cv_url: cvUrl,
+      status: 'accepted',
+    }
+
+    let applicationId = null
+    const existingMember = editingMemberId
+      ? manageUsers.find((user) => user.id === editingMemberId)
+      : null
+    if (existingMember?.applicationId) {
+      applicationId = existingMember.applicationId
+    } else if (trimmedEmail) {
+      const { data: existingApplication } = await supabase
+        .from('job_applications')
+        .select('id')
+        .eq('email', trimmedEmail)
+        .maybeSingle()
+      if (existingApplication?.id) {
+        applicationId = existingApplication.id
       }
-      return [newMember, ...prev]
-    })
+    }
+
+    if (applicationId) {
+      const { error: applicationError } = await supabase
+        .from('job_applications')
+        .update(applicationPayload)
+        .eq('id', applicationId)
+      if (applicationError) {
+        console.error('Failed to update application', applicationError)
+      }
+    } else {
+      const { data: applicationRow, error: applicationError } = await supabase
+        .from('job_applications')
+        .insert([applicationPayload])
+        .select('id')
+        .single()
+      if (applicationError) {
+        console.error('Failed to create application', applicationError)
+      } else {
+        applicationId = applicationRow?.id || null
+      }
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .upsert([{
+        application_id: applicationId,
+        full_name: fullName,
+        email: trimmedEmail,
+        role: roleLabel,
+        status: 'active',
+        phone_number: trimmedPhone || null,
+        phone_country_code: trimmedCountryCode || null,
+        gender: addMemberForm.gender || null,
+        age: Number.isFinite(numericAge) ? numericAge : null,
+        country: trimmedCountry || null,
+        current_address: trimmedAddress || null,
+        position_applied: trimmedPosition || null,
+        cv_filename: cvFilename,
+        cv_size: cvSize,
+        cv_url: cvUrl,
+      }], { onConflict: 'email' })
+
+    if (error) {
+      console.error('Failed to save member', error)
+      setAddMemberError('Unable to save member. Please try again.')
+      return
+    }
+
+    await fetchUsers()
     setManageCurrentPage(1)
     handleCloseAddMemberModal()
+    setIsAddMemberSuccessOpen(true)
   }
 
   const handleMarkAllNotificationsRead = () => {
@@ -2351,15 +2850,17 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setNotifications((prev) => prev.filter((item) => item.id !== notificationId))
   }
 
-  const handleApprovalQueueAction = (email, decision) => {
+  const handleApprovalQueueAction = async (email, decision, applicationId, fallbackApplicant) => {
+    const matchedApplicant = approvalQueue.find((user) => user.email === email || user.id === applicationId)
     const matchedUser = manageUsers.find((user) => user.email === email)
-    if (matchedUser) {
+    const historySource = matchedApplicant || matchedUser || fallbackApplicant
+    if (historySource) {
       setApprovalHistory((prev) => [
         {
           id: `history-${Date.now()}`,
-          name: matchedUser.name,
-          email: matchedUser.email,
-          role: matchedUser.requestedRole || matchedUser.role,
+          name: historySource.name,
+          email: historySource.email,
+          role: historySource.requestedRole || historySource.role,
           decision: decision === 'approve' ? 'accepted' : 'declined',
           time: 'Just now',
           year: String(new Date().getFullYear()),
@@ -2368,18 +2869,217 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       ])
     }
 
-    setManageUsers((prev) => prev.flatMap((user) => {
-      if (user.email !== email) return [user]
-      if (decision === 'decline') return []
-      return [{
-        ...user,
-        status: 'active',
-        verified: true,
-        activity: 'Just now',
-        access: user.requestedRole || user.role,
-        role: user.requestedRole || user.role,
-      }]
+    setApplications((prev) => prev.filter((application) => {
+      if (matchedApplicant?.id) return application.id !== matchedApplicant.id
+      if (applicationId) return application.id !== applicationId
+      return application.email !== email
     }))
+
+    const targetApplicationId = matchedApplicant?.id || applicationId
+    if (targetApplicationId) {
+      const { error } = await supabase
+        .from('job_applications')
+        .update({
+          status: decision === 'approve' ? 'accepted' : 'rejected',
+          decided_at: new Date().toISOString(),
+        })
+        .eq('id', targetApplicationId)
+
+      if (error) {
+        console.error('Failed to update application status', error)
+      }
+    }
+
+    if (historySource) {
+      const { error } = await supabase
+        .from('approval_history')
+        .insert([{
+          application_id: targetApplicationId || null,
+          applicant_name: historySource.name,
+          applicant_email: historySource.email,
+          role: historySource.requestedRole || historySource.role,
+          decision: decision === 'approve' ? 'accepted' : 'rejected',
+          decided_at: new Date().toISOString(),
+          decided_by: 'Admin',
+        }])
+
+      if (error) {
+        console.error('Failed to insert approval history', error)
+      }
+    }
+
+    if (decision === 'approve' && historySource) {
+      const roleValue = historySource.requestedRoleLabel
+        || historySource.requestedRole
+        || historySource.role
+        || historySource.positionApplied
+        || 'Applicant'
+      const { error } = await supabase
+        .from('users')
+        .upsert([{
+          application_id: targetApplicationId || null,
+          full_name: historySource.name || 'Applicant',
+          email: historySource.email || email,
+          role: roleValue,
+          status: 'active',
+          phone_number: historySource.contactNumber || null,
+          phone_country_code: historySource.phoneCountryCode || null,
+          country: historySource.country || null,
+          gender: historySource.gender || null,
+          age: typeof historySource.age === 'number' ? historySource.age : null,
+          current_address: historySource.currentAddress || null,
+          position_applied: historySource.positionApplied || null,
+          cv_filename: historySource.cvFilename || null,
+          cv_size: historySource.cvSize ?? null,
+          cv_url: historySource.cvUrl || null,
+        }], { onConflict: 'email' })
+
+      if (error) {
+        console.error('Failed to insert approved user', error)
+      } else {
+        await fetchUsers()
+      }
+    }
+
+    if (decision === 'decline') {
+      await fetchUsers()
+    }
+
+    setManageUsers((prev) => {
+      if (decision === 'decline') {
+        return prev.filter((user) => user.email !== email)
+      }
+
+      const existing = prev.find((user) => user.email === email)
+      if (existing) {
+        return prev.map((user) => (
+          user.email === email
+            ? {
+              ...user,
+              status: 'active',
+              verified: true,
+              activity: 'Just now',
+              access: user.requestedRole || user.role,
+              role: user.requestedRole || user.role,
+            }
+            : user
+        ))
+      }
+
+      if (!historySource) return prev
+
+      const nameParts = historySource.name?.split(/\s+/).filter(Boolean) || []
+      const firstInitial = nameParts[0]?.charAt(0) || ''
+      const lastInitial = nameParts[nameParts.length - 1]?.charAt(0) || firstInitial
+      const roleLabel = historySource.requestedRoleLabel || historySource.requestedRole || historySource.role || 'Applicant'
+      const joinedDate = new Date()
+
+      const newMember = {
+        id: `member-${Date.now()}`,
+        initials: `${firstInitial}${lastInitial}`.toUpperCase(),
+        name: historySource.name || 'Applicant',
+        email: historySource.email || email,
+        role: roleLabel,
+        access: roleLabel,
+        status: 'active',
+        joined: joinedDate.toISOString().slice(0, 10),
+        contactNumber: historySource.contactNumber || '—',
+        course: '—',
+        internshipHours: '—',
+        university: '—',
+        activity: 'Just now',
+        onboarding: historySource.requestedAt || formatAdminDate(joinedDate),
+        verified: true,
+        username: historySource.username || (historySource.email ? historySource.email.split('@')[0] : '—'),
+      }
+
+      return [newMember, ...prev]
+    })
+  }
+
+  const handleRequestApprovalAction = (email, decision, applicationId, meta) => {
+    const matchedUser = approvalQueue.find((user) => user.email === email || user.id === applicationId)
+    const source = matchedUser || meta
+    setPendingApprovalAction({
+      email,
+      decision,
+      applicationId: applicationId || matchedUser?.id || null,
+      name: source?.name || 'Applicant',
+      positionApplied: source?.positionApplied || source?.requestedRole || 'Applicant',
+      requestedAt: source?.requestedAt || 'Recently',
+      email: source?.email || '',
+      role: source?.requestedRole || source?.role || 'Applicant',
+    })
+  }
+
+  const handleConfirmApprovalAction = async () => {
+    if (!pendingApprovalAction) return
+    const decisionLabel = pendingApprovalAction.decision === 'approve' ? 'accepted' : 'rejected'
+    const emailTarget = pendingApprovalAction.email && pendingApprovalAction.email !== '—'
+      ? pendingApprovalAction.email
+      : ''
+    await handleApprovalQueueAction(
+      pendingApprovalAction.email,
+      pendingApprovalAction.decision,
+      pendingApprovalAction.applicationId,
+      {
+        name: pendingApprovalAction.name,
+        email: pendingApprovalAction.email,
+        requestedRole: pendingApprovalAction.role,
+      },
+    )
+    setPendingApprovalAction(null)
+    setApprovalToast({
+      id: Date.now(),
+      decision: decisionLabel,
+      message: `Application ${decisionLabel}.`,
+    })
+    if (emailTarget) {
+      try {
+        const emailServiceId = import.meta.env.VITE_EMAILJS_SERVICE_ID
+        const approveTemplateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID_APPROVE
+        const rejectTemplateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID_REJECT
+        const emailPublicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+
+        const emailTemplateId = decisionLabel === 'accepted' ? approveTemplateId : rejectTemplateId
+
+        if (emailServiceId && emailTemplateId && emailPublicKey) {
+          const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              service_id: emailServiceId,
+              template_id: emailTemplateId,
+              user_id: emailPublicKey,
+              template_params: {
+                to_name: pendingApprovalAction.name,
+                to_email: emailTarget,
+                decision: decisionLabel,
+                position: pendingApprovalAction.positionApplied,
+                applicant_email: pendingApprovalAction.email,
+                submitted_date: pendingApprovalAction.requestedAt,
+                careers_url: CAREERS_URL,
+              },
+            }),
+          })
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`EmailJS error ${response.status}: ${errorText}`)
+          }
+        } else {
+          console.warn('EmailJS config missing; skipping email send.')
+        }
+      } catch (error) {
+        console.error('Failed to send EmailJS notification', error)
+      }
+    }
+    setTimeout(() => {
+      setApprovalToast((prev) => (prev && prev.decision === decisionLabel ? null : prev))
+    }, 3000)
+  }
+
+  const handleCancelApprovalAction = () => {
+    setPendingApprovalAction(null)
   }
 
   const adminPanelTitle = adminActivePanel === 'manage-users'
@@ -2427,7 +3127,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
             }}
           >
             <motion.section
-              className="admin-member-modal admin-dashboard-detail-modal"
+              className="admin-member-modal admin-detail-modal"
               initial={{ opacity: 0, y: 20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -2446,7 +3146,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 <IconX size={18} />
               </button>
 
-	              <div className="admin-member-modal-head">
+	              <div className="admin-member-modal-head admin-detail-head">
 	                <h2>{selectedDashboardUser.name}</h2>
 	                <p>
 	                  {selectedDashboardUser.detailType === 'evaluation'
@@ -2454,14 +3154,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 	                    : 'Complete account and onboarding details for the selected dashboard user.'}
 	                </p>
 	              </div>
-
-		              <div className="admin-dashboard-detail-summary">
-		                <span>{selectedDashboardUser.initials}</span>
-		                <div>
-		                  <strong>{selectedDashboardUser.detailType === 'evaluation' ? 'Evaluation Task' : selectedDashboardUser.role}</strong>
-		                  <small>{selectedDashboardUser.detailType === 'evaluation' ? activeEvaluationDetailTask : selectedDashboardUser.email}</small>
-		                </div>
-		              </div>
+                <div className="admin-detail-divider" aria-hidden="true" />
 
 		              {selectedDashboardUser.detailType === 'evaluation' ? (
                     <>
@@ -2523,45 +3216,123 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 		                </div>
                     </>
 	              ) : (
-	                <div className="admin-dashboard-detail-grid">
-	                  <article>
-	                    <small>Gender</small>
-	                    <strong>{selectedDashboardUser.gender || '—'}</strong>
-	                  </article>
-	                  <article>
-	                    <small>Age</small>
-	                    <strong>{selectedDashboardUser.age || '—'}</strong>
-	                  </article>
-	                  <article>
-	                    <small>Phone Number</small>
-	                    <strong>{selectedDashboardUser.contactNumber || '—'}</strong>
-	                  </article>
-	                  <article>
-	                    <small>Email Address</small>
-	                    <strong>{selectedDashboardUser.email || '—'}</strong>
-	                  </article>
-	                  <article>
-	                    <small>Position Applied</small>
-	                    <strong>{selectedDashboardUser.positionApplied || '—'}</strong>
-	                  </article>
-	                  <article>
-	                    <small>Country</small>
-	                    <strong>{selectedDashboardUser.country || '—'}</strong>
-	                  </article>
-	                  <article>
-	                    <small>Current Address</small>
-	                    <strong>{selectedDashboardUser.currentAddress || '—'}</strong>
-	                  </article>
-	                  <article>
-	                    <small>Upload CV (PDF)</small>
-	                    <strong>
-	                      {selectedDashboardUser.cvUrl ? (
-	                        <a href={selectedDashboardUser.cvUrl} target="_blank" rel="noreferrer">
-	                          {selectedDashboardUser.cvFilename || 'View CV'}
-	                        </a>
-	                      ) : (selectedDashboardUser.cvFilename || '—')}
-	                    </strong>
-	                  </article>
+	                <div className="admin-detail-content">
+	                  <div className="admin-detail-grid">
+	                    <article>
+	                      <small>Gender</small>
+	                      <strong>{selectedDashboardUser.gender || '—'}</strong>
+	                    </article>
+	                    <article>
+	                      <small>Age</small>
+	                      <strong>{selectedDashboardUser.age || '—'}</strong>
+	                    </article>
+	                    <article>
+	                      <small>Phone Number</small>
+	                      <strong>{selectedDashboardUser.contactNumber || '—'}</strong>
+	                    </article>
+	                    <article>
+	                      <small>Email Address</small>
+	                      <strong>{selectedDashboardUser.email || '—'}</strong>
+	                    </article>
+	                    <article>
+	                      <small>Position Applied</small>
+	                      <strong>{selectedDashboardUser.positionApplied || '—'}</strong>
+	                    </article>
+	                    <article>
+	                      <small>Country</small>
+	                      <strong>{selectedDashboardUser.country || '—'}</strong>
+	                    </article>
+	                    <article>
+	                      <small>Current Address</small>
+	                      <strong>{selectedDashboardUser.currentAddress || '—'}</strong>
+	                    </article>
+	                  </div>
+	                  <div className="admin-detail-actions">
+	                    <button
+	                      type="button"
+	                      className="admin-detail-btn ghost cancel"
+	                      onClick={() => {
+	                        setSelectedDashboardUser(null)
+	                        setSelectedEvaluationDetailTask('')
+	                      }}
+	                    >
+	                      Cancel
+	                    </button>
+	                    <button
+	                      type="button"
+	                      className="admin-detail-btn primary"
+	                      onClick={async () => {
+	                        const cvRef = selectedDashboardUser.cvUrl
+	                        if (!cvRef) return
+	                        if (/^https?:\/\//i.test(cvRef)) {
+	                          window.open(cvRef, '_blank', 'noopener,noreferrer')
+	                          return
+	                        }
+
+	                        const { data, error } = await supabase
+	                          .storage
+	                          .from('job-applications-cv')
+	                          .createSignedUrl(cvRef, 60 * 10)
+
+	                        if (error) {
+	                          console.error('CV signed URL failed', error)
+	                          return
+	                        }
+
+	                        if (data?.signedUrl) {
+	                          window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+	                        }
+	                      }}
+	                      disabled={!selectedDashboardUser.cvUrl}
+	                      aria-disabled={!selectedDashboardUser.cvUrl}
+	                    >
+	                      View CV
+	                    </button>
+	                    <button
+	                      type="button"
+	                      className="admin-detail-btn ghost download"
+	                      onClick={async () => {
+	                        const cvRef = selectedDashboardUser.cvUrl
+	                        if (!cvRef) return
+
+	                        const filename = selectedDashboardUser.cvFilename && selectedDashboardUser.cvFilename !== '—'
+	                          ? selectedDashboardUser.cvFilename
+	                          : 'cv.pdf'
+
+	                        try {
+	                          let fileBlob = null
+	                          if (/^https?:\/\//i.test(cvRef)) {
+	                            const response = await fetch(cvRef)
+	                            if (!response.ok) throw new Error('Failed to fetch CV file.')
+	                            fileBlob = await response.blob()
+	                          } else {
+	                            const { data, error } = await supabase
+	                              .storage
+	                              .from('job-applications-cv')
+	                              .download(cvRef)
+	                            if (error) throw error
+	                            fileBlob = data
+	                          }
+
+	                          if (!fileBlob) return
+	                          const objectUrl = URL.createObjectURL(fileBlob)
+	                          const link = document.createElement('a')
+	                          link.href = objectUrl
+	                          link.download = filename
+	                          document.body.appendChild(link)
+	                          link.click()
+	                          link.remove()
+	                          URL.revokeObjectURL(objectUrl)
+	                        } catch (error) {
+	                          console.error('CV download failed', error)
+	                        }
+	                      }}
+	                      disabled={!selectedDashboardUser.cvUrl}
+	                      aria-disabled={!selectedDashboardUser.cvUrl}
+	                    >
+	                      Download CV
+	                    </button>
+	                  </div>
 	                </div>
 	              )}
 	            </motion.section>
@@ -2737,6 +3508,173 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
             </motion.section>
           </motion.div>
         ) : null}
+        {pendingApprovalAction ? (
+          <motion.div
+            className="admin-confirm-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleCancelApprovalAction}
+          >
+            <motion.section
+              className="admin-confirm-modal"
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-confirm-close"
+                aria-label="Close confirmation"
+                onClick={handleCancelApprovalAction}
+              >
+                <IconX size={18} />
+              </button>
+              <h3>
+                {pendingApprovalAction.decision === 'approve'
+                  ? 'Confirm Approval'
+                  : 'Confirm Rejection'}
+              </h3>
+              <p>
+                {pendingApprovalAction.decision === 'approve'
+                  ? 'Are you sure you want to approve this application?'
+                  : 'Are you sure you want to reject this application?'}
+              </p>
+              <div className="admin-confirm-actions">
+                <button type="button" className="admin-confirm-btn ghost" onClick={handleCancelApprovalAction}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`admin-confirm-btn ${pendingApprovalAction.decision === 'approve' ? 'primary' : 'danger'}`}
+                  onClick={handleConfirmApprovalAction}
+                >
+                  {pendingApprovalAction.decision === 'approve' ? 'Approve' : 'Reject'}
+                </button>
+              </div>
+            </motion.section>
+          </motion.div>
+        ) : null}
+        {pendingRemoveMember ? (
+          <motion.div
+            className="admin-confirm-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleCancelRemoveMember}
+          >
+            <motion.section
+              className="admin-confirm-modal"
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-confirm-close"
+                aria-label="Close confirmation"
+                onClick={handleCancelRemoveMember}
+              >
+                <IconX size={18} />
+              </button>
+              <h3>Delete Member</h3>
+              <p>
+                Are you sure you want to delete {pendingRemoveMember.name || 'this member'}?
+              </p>
+              <div className="admin-confirm-actions">
+                <button type="button" className="admin-confirm-btn ghost" onClick={handleCancelRemoveMember}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="admin-confirm-btn danger"
+                  onClick={handleConfirmRemoveMember}
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.section>
+          </motion.div>
+        ) : null}
+        {memberDeleteToast || approvalToast ? (
+          <div className="admin-toast-stack">
+            {memberDeleteToast ? (
+              <motion.div
+                key={`member-delete-toast-${memberDeleteToast.id}`}
+                className={`admin-approval-toast ${memberDeleteToast.status}`}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                <span className="admin-approval-toast-icon" aria-hidden="true">
+                  {memberDeleteToast.status === 'restored' || memberDeleteToast.status === 'restoring'
+                    ? <IconUserCheck size={16} />
+                    : <IconTrash size={16} />}
+                </span>
+                <div>
+                  <strong>
+                    {memberDeleteToast.status === 'deleted'
+                      ? 'Deleted'
+                      : memberDeleteToast.status === 'restored'
+                        ? 'Restored'
+                        : memberDeleteToast.status === 'restoring'
+                          ? 'Restoring'
+                          : 'Delete failed'}
+                  </strong>
+                  <small>{memberDeleteToast.message}</small>
+                </div>
+                {memberDeleteToast.status === 'deleted' ? (
+                  <button
+                    type="button"
+                    className="admin-approval-toast-action"
+                    onClick={handleRestoreMember}
+                  >
+                    Undo
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="admin-approval-toast-close"
+                  aria-label="Dismiss notification"
+                  onClick={() => setMemberDeleteToast(null)}
+                >
+                  <IconX size={14} />
+                </button>
+              </motion.div>
+            ) : null}
+            {approvalToast ? (
+              <motion.div
+                key={`approval-toast-${approvalToast.id}`}
+                className={`admin-approval-toast ${approvalToast.decision}`}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                <span className="admin-approval-toast-icon" aria-hidden="true">
+                  {approvalToast.decision === 'accepted' ? <IconUserCheck size={16} /> : <IconUserX size={16} />}
+                </span>
+                <div>
+                  <strong>{approvalToast.decision === 'accepted' ? 'Accepted' : 'Rejected'}</strong>
+                  <small>{approvalToast.message}</small>
+                </div>
+                <button
+                  type="button"
+                  className="admin-approval-toast-close"
+                  aria-label="Dismiss notification"
+                  onClick={() => setApprovalToast(null)}
+                >
+                  <IconX size={14} />
+                </button>
+              </motion.div>
+            ) : null}
+          </div>
+        ) : null}
         {isAddMemberModalOpen ? (
           <motion.div
             className="admin-member-modal-overlay"
@@ -2746,7 +3684,11 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
             onClick={handleCloseAddMemberModal}
           >
             <motion.section
-              className="admin-member-modal"
+              className="admin-member-modal admin-member-modal--redesign"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-member-modal-title"
+              aria-describedby="admin-member-modal-desc"
               initial={{ opacity: 0, y: 20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -2762,198 +3704,231 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 <IconX size={18} />
               </button>
 
-              <div className="admin-member-modal-head">
-                <h2>{editingMemberId ? 'Edit Team Member' : 'Add Team Member'}</h2>
-                <p>
-                  {editingMemberId
-                    ? 'Update the selected team member using the same two-step onboarding flow.'
-                    : 'Create a new team record using the same role-based flow as signup.'}
-                </p>
-              </div>
-
-              <div className="admin-member-stepper" aria-label="Add team member steps">
-                <div className={`admin-member-step-chip ${addMemberStep === 1 ? 'active' : ''}`}>
-                  <span>1</span>
-                  <strong>Personal</strong>
+              <div className="admin-member-modal-hero">
+                <div className="admin-member-modal-icon" aria-hidden="true">
+                  <IconUserPlus size={22} />
                 </div>
-                <div className="admin-member-step-divider" />
-                <div className={`admin-member-step-chip ${addMemberStep === 2 ? 'active' : ''}`}>
-                  <span>2</span>
-                  <strong>Account</strong>
+                <div className="admin-member-modal-head">
+                  <h2 id="admin-member-modal-title">{editingMemberId ? 'Edit Team Member' : 'Add Team Member'}</h2>
+                  <p id="admin-member-modal-desc">
+                    {editingMemberId
+                      ? 'Update the selected team member using the Join Us fields.'
+                      : 'Create a new team record using the Join Us fields.'}
+                  </p>
                 </div>
               </div>
-
+              <div className="admin-member-modal-divider" aria-hidden="true" />
               <form className="admin-member-form" onSubmit={handleAddMemberSubmit}>
-                {addMemberStep === 1 ? (
-                  <>
-                    <div className="admin-member-form-panel">
-                      <div className="admin-member-form-panel-head">
-                        <h3>Personal Details</h3>
-                        <p>Set the role and onboarding profile details first.</p>
-                      </div>
-                      <div className="admin-member-form-grid">
-                        <label>
-                          Role
-                          <select
-                            value={addMemberForm.role}
-                            onChange={(event) => handleAddMemberFieldChange('role', event.target.value)}
-                          >
-                            <option value="intern">Intern</option>
-                            <option value="employee">Employee</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                        </label>
-                        <label>
-                          Full Name
-                          <input
-                            type="text"
-                            value={addMemberForm.fullName}
-                            onChange={(event) => handleAddMemberFieldChange('fullName', event.target.value)}
-                            placeholder="Enter full name"
-                          />
-                        </label>
-                        <label className="full">
-                          Contact Number
-                          <input
-                            type="tel"
-                            value={addMemberForm.contactNumber}
-                            onChange={(event) => handleAddMemberFieldChange('contactNumber', event.target.value)}
-                            placeholder="0917 123 4567"
-                            inputMode="numeric"
-                            maxLength={11}
-                          />
-                        </label>
-                        {addMemberForm.role === 'intern' ? (
-                          <>
-                            <label>
-                              Course
-                              <input
-                                type="text"
-                                value={addMemberForm.course}
-                                onChange={(event) => handleAddMemberFieldChange('course', event.target.value)}
-                                placeholder="Enter course"
-                              />
-                            </label>
-                            <label>
-                              Required Internship Hours
-                              <input
-                                type="text"
-                                value={addMemberForm.internshipHours}
-                                onChange={(event) => handleAddMemberFieldChange('internshipHours', event.target.value)}
-                                placeholder="240 hrs"
-                              />
-                            </label>
-                            <label className="full">
-                              University
-                              <select
-                                value={addMemberForm.university}
-                                onChange={(event) => handleAddMemberFieldChange('university', event.target.value)}
+                <div className="admin-member-form-panel">
+                  <div className="admin-member-form-panel-head">
+                    <h3>Applicant Details</h3>
+                    <p>Match the Join Us fields. Credentials are handled separately.</p>
+                  </div>
+                  <div className="admin-member-form-grid">
+                    <label>
+                      First Name
+                      <input
+                        type="text"
+                        value={addMemberForm.firstName}
+                        onChange={(event) => handleAddMemberFieldChange('firstName', event.target.value)}
+                        placeholder="e.g. Michael"
+                      />
+                    </label>
+                    <label>
+                      Last Name
+                      <input
+                        type="text"
+                        value={addMemberForm.lastName}
+                        onChange={(event) => handleAddMemberFieldChange('lastName', event.target.value)}
+                        placeholder="e.g. Chen"
+                      />
+                    </label>
+                    <label>
+                      Gender
+                      <select
+                        value={addMemberForm.gender}
+                        onChange={(event) => handleAddMemberFieldChange('gender', event.target.value)}
+                      >
+                        <option value="">Select gender</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Prefer not to say</option>
+                      </select>
+                    </label>
+                    <label>
+                      Age
+                      <input
+                        type="number"
+                        min="0"
+                        value={addMemberForm.age}
+                        onChange={(event) => handleAddMemberFieldChange('age', event.target.value)}
+                        placeholder="23"
+                      />
+                    </label>
+                    <label>
+                      Phone Country
+                      <select
+                        value={addMemberForm.phoneCountryCode}
+                        onChange={(event) => handleAddMemberFieldChange('phoneCountryCode', event.target.value)}
+                      >
+                        <option value="+63">+63</option>
+                        <option value="+1">+1</option>
+                        <option value="+44">+44</option>
+                        <option value="+61">+61</option>
+                        <option value="+65">+65</option>
+                        <option value="+81">+81</option>
+                      </select>
+                    </label>
+                    <label>
+                      Phone Number
+                      <input
+                        type="tel"
+                        value={addMemberForm.phoneNumber}
+                        onChange={(event) => handleAddMemberFieldChange('phoneNumber', event.target.value)}
+                        placeholder="0917 123 4567"
+                        inputMode="numeric"
+                        maxLength={11}
+                      />
+                    </label>
+                    <label className="full">
+                      Email
+                      <input
+                        type="email"
+                        value={addMemberForm.email}
+                        onChange={(event) => handleAddMemberFieldChange('email', event.target.value)}
+                        placeholder="name@email.com"
+                      />
+                    </label>
+                    <label className="full">
+                      Position Applied
+                      <select
+                        value={addMemberForm.positionApplied}
+                        onChange={(event) => handleAddMemberFieldChange('positionApplied', event.target.value)}
+                      >
+                        <option value="">Select position</option>
+                        <option>Image Data Collector (Capturing Home Dishes and Menu)</option>
+                        <option>Image Data Collector (Capturing Restaurant Menu)</option>
+                        <option>Image Data Collector (Capturing Receipts)</option>
+                        <option>Image Data Collector (Capturing Products on Shelves)</option>
+                        <option>Image Data Collector (Capturing Government IDs)</option>
+                        <option>Image Data Collector (Capturing Product Packaging)</option>
+                        <option>Moderator &amp; Voice Participants (Voice Data Collection)</option>
+                        <option>Operation Manager</option>
+                        <option>Social Media Content Marketing</option>
+                        <option>Text Data Collector (Gemini User)</option>
+                        <option>Voice Recording Participants (FaceTime Audio Recording Session)</option>
+                        <option>Voice Recording Participants (Short Sentences Recording)</option>
+                        <option>All of the Above</option>
+                      </select>
+                    </label>
+                    <label>
+                      Country
+                      <div
+                        className={`admin-member-country-select ${isAdminCountryOpen ? 'is-open' : ''}`}
+                        ref={adminCountryRef}
+                      >
+                        <button
+                          type="button"
+                          className="admin-member-country-trigger"
+                          onClick={() => setIsAdminCountryOpen((prev) => !prev)}
+                        >
+                          <span>{addMemberForm.country || 'Select country'}</span>
+                          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                        {isAdminCountryOpen && (
+                          <div className="admin-member-country-list" role="listbox">
+                            {COUNTRIES.map((country) => (
+                              <button
+                                type="button"
+                                key={country}
+                                className={`admin-member-country-option ${addMemberForm.country === country ? 'selected' : ''}`}
+                                onMouseDown={(event) => {
+                                  event.preventDefault()
+                                  handleAddMemberFieldChange('country', country)
+                                  setIsAdminCountryOpen(false)
+                                }}
+                                role="option"
+                                aria-selected={addMemberForm.country === country}
                               >
-                                <option value="">Select university</option>
-                                {ADD_MEMBER_UNIVERSITIES.map((university) => (
-                                  <option key={university} value={university}>
-                                    {university}
-                                  </option>
-                                ))}
-                                <option value="others">Others</option>
-                              </select>
-                            </label>
-                            {addMemberForm.university === 'others' ? (
-                              <label className="full">
-                                Other University
-                                <input
-                                  type="text"
-                                  value={addMemberForm.customUniversity}
-                                  onChange={(event) => handleAddMemberFieldChange('customUniversity', event.target.value)}
-                                  placeholder="Type university name"
-                                />
-                              </label>
-                            ) : null}
-                          </>
-                        ) : (
-                          <div className="admin-member-role-note">
-                            Internship-only fields will be marked as `—` for this role in the user table.
+                                {country}
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="admin-member-form-panel">
-                      <div className="admin-member-form-panel-head">
-                        <h3>Account Details</h3>
-                        <p>
-                          {editingMemberId
-                            ? 'Update account identity details. Leave password blank to keep the current password.'
-                            : 'Finish the account setup credentials for this team member.'}
-                        </p>
+                    </label>
+                    <label>
+                      Current Address
+                      <input
+                        type="text"
+                        value={addMemberForm.currentAddress}
+                        onChange={(event) => handleAddMemberFieldChange('currentAddress', event.target.value)}
+                        placeholder="e.g. Quezon City, Metro Manila"
+                      />
+                    </label>
+                    <label className="full">
+                      Upload CV (PDF)
+                      <div className="admin-file-input">
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={(event) => handleAddMemberFieldChange('cvFile', event.target.files?.[0] || null)}
+                        />
+                        <span className="admin-file-action">Choose PDF</span>
+                        <span className="admin-file-name">
+                          {addMemberForm.cvFile ? addMemberForm.cvFile.name : 'No file selected'}
+                        </span>
                       </div>
-                      <div className="admin-member-form-grid">
-                        <label>
-                          Username
-                          <input
-                            type="text"
-                            value={addMemberForm.username}
-                            onChange={(event) => handleAddMemberFieldChange('username', event.target.value)}
-                            placeholder="Enter username"
-                          />
-                        </label>
-                        <label>
-                          Email
-                          <input
-                            type="email"
-                            value={addMemberForm.email}
-                            onChange={(event) => handleAddMemberFieldChange('email', event.target.value)}
-                            placeholder="Enter email address"
-                          />
-                        </label>
-                        <label>
-                          Password
-                          <input
-                            type="password"
-                            value={addMemberForm.password}
-                            onChange={(event) => handleAddMemberFieldChange('password', event.target.value)}
-                            placeholder="Enter password"
-                          />
-                        </label>
-                        <label>
-                          Confirm Password
-                          <input
-                            type="password"
-                            value={addMemberForm.confirmPassword}
-                            onChange={(event) => handleAddMemberFieldChange('confirmPassword', event.target.value)}
-                            placeholder="Confirm password"
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  </>
-                )}
+                    </label>
+                  </div>
+                </div>
                 {addMemberError ? <p className="admin-member-form-error">{addMemberError}</p> : null}
                 <div className="admin-member-form-actions">
-                  {addMemberStep === 1 ? (
-                    <>
-                      <button type="button" className="secondary" onClick={handleCloseAddMemberModal}>
-                        Cancel
-                      </button>
-                      <button type="button" className="primary" onClick={handleAddMemberNextStep}>
-                        Continue
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button type="button" className="secondary" onClick={() => setAddMemberStep(1)}>
-                        Previous
-                      </button>
-                      <button type="submit" className="primary">
-                        <IconUserPlus size={16} />
-                        {editingMemberId ? 'Save Changes' : 'Add Member'}
-                      </button>
-                    </>
-                  )}
+                  <button type="button" className="secondary" onClick={handleCloseAddMemberModal}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="primary">
+                    <IconUserPlus size={16} />
+                    {editingMemberId ? 'Save Changes' : 'Add Member'}
+                  </button>
                 </div>
               </form>
+            </motion.section>
+          </motion.div>
+        ) : null}
+        {isAddMemberSuccessOpen ? (
+          <motion.div
+            className="admin-success-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsAddMemberSuccessOpen(false)}
+          >
+            <motion.section
+              className="admin-success-modal"
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-success-modal-close"
+                aria-label="Close success modal"
+                onClick={() => setIsAddMemberSuccessOpen(false)}
+              >
+                <IconX size={16} />
+              </button>
+              <div className="admin-success-modal-icon" aria-hidden="true">
+                <IconUserCheck size={20} />
+              </div>
+              <div>
+                <h3>Member Added</h3>
+                <p>The team member has been created successfully.</p>
+              </div>
             </motion.section>
           </motion.div>
         ) : null}
@@ -3138,14 +4113,22 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                                     <button
                                       type="button"
                                       className="admin-dashboard-notif-action accept"
-                                      onClick={(event) => handleApprovalDecision(event, item.id, 'accepted')}
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        handleNotificationClick(item.id)
+                                        handleRequestApprovalAction(item.email, 'approve', item.applicationId, item)
+                                      }}
                                     >
                                       Accept
                                     </button>
                                     <button
                                       type="button"
                                       className="admin-dashboard-notif-action decline"
-                                      onClick={(event) => handleApprovalDecision(event, item.id, 'declined')}
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        handleNotificationClick(item.id)
+                                        handleRequestApprovalAction(item.email, 'decline', item.applicationId, item)
+                                      }}
                                     >
                                       Decline
                                     </button>
@@ -3339,17 +4322,30 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                             <button
                               type="button"
                               role="menuitem"
+                              onClick={() => {
+                                handleOpenUserDetail(member)
+                                setOpenMemberActionMenuId(null)
+                              }}
+                            >
+                              <IconEye size={16} />
+                              View details
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
                               onClick={() => handleEditMember(member)}
                             >
+                              <IconUserEdit size={16} />
                               Edit member
                             </button>
                             <button
                               type="button"
                               role="menuitem"
                               className="danger"
-                              onClick={() => handleDeleteMember(member.id)}
+                              onClick={() => handleRequestRemoveMember(member)}
                             >
-                              Remove member
+                              <IconUserX size={16} />
+                            Delete member
                             </button>
                           </div>
                         ) : null}
@@ -4171,7 +5167,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           <strong>{member.name}</strong>
                         </div>
                       </div>
-                      <p><em>{member.requestedRole}</em></p>
+                      <p><em>{member.requestedRoleLabel || member.requestedRole}</em></p>
                       <p>{member.email}</p>
                       <p>{member.contactNumber}</p>
                       <p>{member.requestedAt}</p>
@@ -4186,7 +5182,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         <button
                           type="button"
                           className="admin-approval-action approve"
-                          onClick={() => handleApprovalQueueAction(member.email, 'approve')}
+                          onClick={() => handleRequestApprovalAction(member.email, 'approve')}
                           aria-label="Approve application"
                         >
                           <IconUserCheck size={16} />
@@ -4194,7 +5190,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         <button
                           type="button"
                           className="admin-approval-action decline"
-                          onClick={() => handleApprovalQueueAction(member.email, 'decline')}
+                          onClick={() => handleRequestApprovalAction(member.email, 'decline')}
                           aria-label="Decline application"
                         >
                           <IconUserX size={16} />
@@ -4389,6 +5385,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                   </div>
                 </div>
 
+                <div className="admin-approval-history-columns" aria-label="Approval history columns">
+                  <span>User</span>
+                  <span>Role</span>
+                  <span>Status</span>
+                  <span>Date</span>
+                  <span>Actions</span>
+                </div>
+
                 <div className="admin-approval-history-list">
                   {pagedApprovalHistory.length > 0 ? pagedApprovalHistory.map((entry) => (
                     <article key={entry.id} className="admin-approval-history-item">
@@ -4480,7 +5484,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <b className="positive">+12%</b>
                   </div>
                   <p>Total Users</p>
-                  <h3>12,450</h3>
+                  <h3>{totalUsersCount.toLocaleString()}</h3>
                 </article>
 
                 <article className="admin-dashboard-stat-card">
@@ -4491,7 +5495,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <b className="positive">+5.4%</b>
                   </div>
                   <p>New Signups</p>
-                  <h3>1,240</h3>
+                  <h3>{newSignupsCount.toLocaleString()}</h3>
                 </article>
 
                 <article className="admin-dashboard-stat-card">
@@ -4502,7 +5506,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <b className="positive">+8.2%</b>
                   </div>
                   <p>Verified Users</p>
-                  <h3>11,842</h3>
+                  <h3>{verifiedUsersCount.toLocaleString()}</h3>
                 </article>
 
                 <article className="admin-dashboard-stat-card">
@@ -4513,7 +5517,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <b className="negative">-2.1%</b>
                   </div>
                   <p>Inactive Accounts</p>
-                  <h3>156</h3>
+                  <h3>{inactiveUsersCount.toLocaleString()}</h3>
                 </article>
               </section>
 
@@ -4671,7 +5675,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                         <button
                           type="button"
                           className="admin-dashboard-detail-btn"
-                          onClick={() => setSelectedDashboardUser(user)}
+                          onClick={() => handleOpenUserDetail(user)}
                         >
                           View Full Details
                         </button>
@@ -6831,51 +7835,6 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const countries = [
-    'Argentina',
-    'Australia',
-    'Bangladesh',
-    'Brazil',
-    'Canada',
-    'Chile',
-    'China',
-    'Colombia',
-    'Denmark',
-    'Egypt',
-    'France',
-    'Germany',
-    'Hong Kong',
-    'India',
-    'Indonesia',
-    'Ireland',
-    'Italy',
-    'Japan',
-    'Kenya',
-    'Kuwait',
-    'Malaysia',
-    'Mexico',
-    'Netherlands',
-    'New Zealand',
-    'Nigeria',
-    'Norway',
-    'Pakistan',
-    'Peru',
-    'Philippines',
-    'Qatar',
-    'Saudi Arabia',
-    'Singapore',
-    'South Africa',
-    'South Korea',
-    'Spain',
-    'Sweden',
-    'Taiwan',
-    'Thailand',
-    'United Arab Emirates',
-    'United Kingdom',
-    'United States',
-    'Vietnam',
-  ]
-
   const adjustAge = (delta) => {
     if (!ageRef.current) return
     const min = Number(ageRef.current.min || 0)
@@ -6968,18 +7927,9 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                   return
                 }
 
-                const { data: publicUrlData, error: urlError } = await supabase
-  .storage
-  .from('job-applications-cv')
-  .getPublicUrl(filePath);
-
-if (urlError) {
-  console.error('Error fetching public URL', urlError);
-  setJoinUsSubmitError(`CV URL retrieval failed: ${urlError.message}`);
-  setIsJoinUsSubmitting(false);
-  return;
-}
-cvUrl = publicUrlData?.publicUrl || null;
+                cvFilename = cvFile.name
+                cvSize = cvFile.size
+                cvUrl = filePath
               }
 
               const payload = {
@@ -6995,20 +7945,21 @@ cvUrl = publicUrlData?.publicUrl || null;
                 current_address: formData.get('currentAddress')?.toString().trim() || null,
                 cv_filename: cvFilename,
                 cv_size: cvSize,
-                cv_url: cvUrl
+                cv_url: cvUrl,
+                status: 'pending',
               }
 
               const { error } = await supabase
-  .from('job_applications')
-  .insert([payload])
+                .from('job_applications')
+                .insert([payload])
 
-if (error) {
-  console.error('Supabase insert failed', error)
-  const details = error.message || error.error_description || 'Submission failed.'
-  setJoinUsSubmitError(`Submission failed: ${details}`)
-  setIsJoinUsSubmitting(false)
-  return
-}
+              if (error) {
+                console.error('Supabase insert failed', error)
+                const details = error.message || error.error_description || 'Submission failed.'
+                setJoinUsSubmitError(`Submission failed: ${details}`)
+                setIsJoinUsSubmitting(false)
+                return
+              }
 
               setJoinUsPending(true)
               setIsJoinUsSubmitting(false)
@@ -7141,7 +8092,7 @@ if (error) {
                     </button>
                     {countryOpen && (
                       <div className="joinus-select-list" role="listbox">
-                        {countries.map((country) => (
+                        {COUNTRIES.map((country) => (
                           <button
                             type="button"
                             key={country}
