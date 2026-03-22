@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { LayerGroup, LayersControl, MapContainer, Marker, TileLayer, Tooltip, ZoomControl, useMap } from 'react-leaflet'
-import { IconBrandLinkedin, IconBrandInstagram, IconBrandFacebook, IconBrandYoutube, IconBrandGoogle, IconBrandApple, IconBrandGithub, IconEye, IconEyeOff, IconLayoutDashboard, IconBook2, IconReport, IconChevronRight, IconLogout, IconMenu2, IconX, IconCamera, IconDeviceFloppy, IconSearch, IconBell, IconFilter, IconDotsVertical, IconUsers, IconUserPlus, IconUserCheck, IconUserX, IconUserEdit, IconTrash } from '@tabler/icons-react'
+import { IconBrandLinkedin, IconBrandInstagram, IconBrandFacebook, IconBrandYoutube, IconBrandGoogle, IconBrandApple, IconBrandGithub, IconEye, IconEyeOff, IconLayoutDashboard, IconBook2, IconReport, IconChevronRight, IconLogout, IconMenu2, IconX, IconCamera, IconDeviceFloppy, IconSearch, IconBell, IconFilter, IconUsers, IconUserPlus, IconUserCheck, IconUserX, IconUserEdit, IconTrash, IconMessage } from '@tabler/icons-react'
 import L from 'leaflet'
 import LiquidEther from './LiquidEther'
 import FlowingMenu from './FlowingMenu'
@@ -70,6 +70,23 @@ const formatAdminDate = (dateValue) => dateValue.toLocaleDateString('en-US', {
   day: '2-digit',
   year: 'numeric',
 })
+const formatMessageTime = (value) => {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return parsed.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }).toLowerCase()
+}
+
+const getInitialsFromName = (value = '') => {
+  const parts = value.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'NA'
+  return parts.map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+}
+
+const truncateMessage = (value = '', limit = 56) => {
+  if (value.length <= limit) return value
+  return `${value.slice(0, limit - 3).trimEnd()}...`
+}
 
 const normalizeContactNumber = (value) => value.replace(/\D/g, '').slice(0, 11)
 
@@ -180,11 +197,6 @@ const Navigation = ({ currentPath = '/', onNavigate = () => {}, onSetAuthMode = 
   }, [])
 
   useEffect(() => {
-    setIsMobileMenuOpen(false)
-    setOpenMobileSection(null)
-  }, [currentPath])
-
-  useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? 'hidden' : ''
     return () => {
       document.body.style.overflow = ''
@@ -241,6 +253,8 @@ const Navigation = ({ currentPath = '/', onNavigate = () => {}, onSetAuthMode = 
     if (href.startsWith('/')) {
       event.preventDefault()
       setOpenSubmenu(null)
+      setIsMobileMenuOpen(false)
+      setOpenMobileSection(null)
       onNavigate(href)
     }
   }
@@ -1357,17 +1371,17 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [notificationTab, setNotificationTab] = useState('view-all')
   const [isTableSearchOpen, setIsTableSearchOpen] = useState(false)
   const [isTableFilterOpen, setIsTableFilterOpen] = useState(false)
-  const [isEvaluationSearchOpen, setIsEvaluationSearchOpen] = useState(false)
+  const [isEvaluationSearchOpen, _setIsEvaluationSearchOpen] = useState(false)
   const [isApprovalSearchOpen, setIsApprovalSearchOpen] = useState(false)
   const [isApprovalFilterOpen, setIsApprovalFilterOpen] = useState(false)
   const [isApprovalHistorySearchOpen, setIsApprovalHistorySearchOpen] = useState(false)
   const [isApprovalHistoryFilterOpen, setIsApprovalHistoryFilterOpen] = useState(false)
-  const [isEvaluationHistorySearchOpen, setIsEvaluationHistorySearchOpen] = useState(false)
-  const [isEvaluationHistoryFilterOpen, setIsEvaluationHistoryFilterOpen] = useState(false)
+  const [isEvaluationHistorySearchOpen, _setIsEvaluationHistorySearchOpen] = useState(false)
+  const [_isEvaluationHistoryFilterOpen, setIsEvaluationHistoryFilterOpen] = useState(false)
   const [isAnalyticsSearchOpen, setIsAnalyticsSearchOpen] = useState(false)
   const [isAnalyticsFilterOpen, setIsAnalyticsFilterOpen] = useState(false)
   const [isAdminCountryOpen, setIsAdminCountryOpen] = useState(false)
-  const [evaluationSearchQuery, setEvaluationSearchQuery] = useState('')
+  const [evaluationSearchQuery, _setEvaluationSearchQuery] = useState('')
   const [approvalSearchQuery, setApprovalSearchQuery] = useState('')
   const [approvalSortMode, setApprovalSortMode] = useState('all')
   const [approvalYearFilter, setApprovalYearFilter] = useState('all')
@@ -1375,22 +1389,29 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [approvalHistorySearchQuery, setApprovalHistorySearchQuery] = useState('')
   const [approvalHistorySortMode, setApprovalHistorySortMode] = useState('all')
   const [approvalHistoryYearFilter, setApprovalHistoryYearFilter] = useState('all')
-  const [approvalHistoryRoleFilter, setApprovalHistoryRoleFilter] = useState('all')
-  const [evaluationHistorySearchQuery, setEvaluationHistorySearchQuery] = useState('')
-  const [evaluationHistorySortMode, setEvaluationHistorySortMode] = useState('all')
-  const [evaluationHistoryYearFilter, setEvaluationHistoryYearFilter] = useState('all')
+  const [approvalHistoryDecisionFilter, setApprovalHistoryDecisionFilter] = useState('all')
+  const [showApprovalHistoryArchive, setShowApprovalHistoryArchive] = useState(false)
+  const [evaluationHistorySearchQuery, _setEvaluationHistorySearchQuery] = useState('')
+  const [evaluationHistorySortMode, _setEvaluationHistorySortMode] = useState('all')
+  const [evaluationHistoryYearFilter, _setEvaluationHistoryYearFilter] = useState('all')
   const [analyticsSearchQuery, setAnalyticsSearchQuery] = useState('')
   const [analyticsSortMode, setAnalyticsSortMode] = useState('all')
+  const [manageSearchQuery, setManageSearchQuery] = useState('')
+  const [manageSortMode, setManageSortMode] = useState('date')
+  const [manageRoleFilter, setManageRoleFilter] = useState('all')
+  const [isManageSearchOpen, setIsManageSearchOpen] = useState(false)
+  const [isManageFilterOpen, setIsManageFilterOpen] = useState(false)
   const [selectedEvaluationDetailTask, setSelectedEvaluationDetailTask] = useState('')
   const [selectedEvaluationModalTask, setSelectedEvaluationModalTask] = useState('')
   const [approvalSubtab, setApprovalSubtab] = useState('pending')
-  const [evaluationSubtab, setEvaluationSubtab] = useState('queue')
+  const [evaluationSubtab, _setEvaluationSubtab] = useState('queue')
   const [tableSortMode, setTableSortMode] = useState('date')
   const [tableRoleFilter, setTableRoleFilter] = useState('all')
   const [tableSearchQuery, setTableSearchQuery] = useState('')
   const [manageUsers, setManageUsers] = useState([])
   const [pendingApprovalAction, setPendingApprovalAction] = useState(null)
   const [pendingRemoveMember, setPendingRemoveMember] = useState(null)
+  const [pendingApprovalHistoryDelete, setPendingApprovalHistoryDelete] = useState(null)
   const [approvalToast, setApprovalToast] = useState(null)
   const [memberDeleteToast, setMemberDeleteToast] = useState(null)
   const [authSession, setAuthSession] = useState(null)
@@ -1400,7 +1421,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [isApplicationsLoading, setIsApplicationsLoading] = useState(false)
   const [evaluationRecords, setEvaluationRecords] = useState({})
   const [evaluationForm, setEvaluationForm] = useState(() => getInitialEvaluationFormState())
-  const [evaluationFeedback, setEvaluationFeedback] = useState('')
+  const [_evaluationFeedback, setEvaluationFeedback] = useState('')
   const [addMemberForm, setAddMemberForm] = useState(() => getInitialAddMemberFormState())
   const [addMemberError, setAddMemberError] = useState('')
   const [approvalHistory, setApprovalHistory] = useState([])
@@ -1415,14 +1436,16 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const approvalHistorySearchInputRef = useRef(null)
   const evaluationHistorySearchInputRef = useRef(null)
   const analyticsSearchInputRef = useRef(null)
+  const manageSearchInputRef = useRef(null)
   const tableFilterRef = useRef(null)
   const approvalFilterRef = useRef(null)
   const approvalHistoryFilterRef = useRef(null)
   const evaluationHistoryFilterRef = useRef(null)
   const analyticsFilterRef = useRef(null)
+  const manageFilterRef = useRef(null)
   const adminCountryRef = useRef(null)
 
-  const mapUserRowToManageUser = (user) => {
+  const mapUserRowToManageUser = useCallback((user) => {
     const nameParts = (user.full_name || '').split(/\s+/).filter(Boolean)
     const firstInitial = nameParts[0]?.charAt(0) || ''
     const lastInitial = nameParts[nameParts.length - 1]?.charAt(0) || firstInitial
@@ -1457,9 +1480,46 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       verified: true,
       username: user.username || (user.email ? user.email.split('@')[0] : '—'),
     }
-  }
+  }, [])
 
-  const fetchUsers = async () => {
+  const mapAdminRowToManageUser = useCallback((admin) => {
+    const nameParts = (admin.full_name || admin.name || admin.email || 'Admin').split(/\s+/).filter(Boolean)
+    const firstInitial = nameParts[0]?.charAt(0) || 'A'
+    const lastInitial = nameParts[nameParts.length - 1]?.charAt(0) || firstInitial
+    const createdAt = admin.created_at ? new Date(admin.created_at) : null
+    const displayName = admin.full_name || admin.name || (admin.email ? admin.email.split('@')[0] : 'Admin')
+    return {
+      id: admin.id,
+      applicationId: null,
+      initials: `${firstInitial}${lastInitial}`.toUpperCase(),
+      name: displayName,
+      email: admin.email || '—',
+      role: 'Admin',
+      access: 'Admin',
+      status: 'active',
+      createdAt: admin.created_at || null,
+      joined: createdAt ? createdAt.toISOString().slice(0, 10) : '—',
+      contactNumber: '—',
+      phoneCountryCode: '',
+      gender: '—',
+      age: '—',
+      country: '—',
+      currentAddress: '—',
+      positionApplied: 'Admin',
+      cvUrl: '',
+      cvFilename: '—',
+      cvSize: null,
+      course: '—',
+      internshipHours: '—',
+      university: '—',
+      activity: 'Active',
+      onboarding: createdAt ? formatAdminDate(createdAt) : '—',
+      verified: true,
+      username: admin.email ? admin.email.split('@')[0] : 'admin',
+    }
+  }, [])
+
+  const fetchUsers = useCallback(async () => {
     if (!authSession) return []
     const { data, error } = await supabase
       .from('users')
@@ -1485,9 +1545,20 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     }
 
     const mapped = (data || []).map(mapUserRowToManageUser)
-    setManageUsers(mapped)
     return mapped
-  }
+  }, [authSession, mapUserRowToManageUser])
+
+  const fetchAdmins = useCallback(async () => {
+    if (!authSession) return []
+    const { data, error } = await supabase
+      .from('admins')
+      .select('id, email, role, created_at, full_name, name')
+    if (error) {
+      console.warn('Failed to load admins', error)
+      return []
+    }
+    return (data || []).map(mapAdminRowToManageUser)
+  }, [authSession, mapAdminRowToManageUser])
 
   const handleOpenUserDetail = async (user) => {
     if (!user) return
@@ -1561,7 +1632,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     })
   }
 
-  const fetchCvForSelectedUser = async (user) => {
+  const _fetchCvForSelectedUser = async (user) => {
     if (!user) return { cvRef: '', cvFilename: 'cv.pdf' }
     if (user.cvUrl) {
       return {
@@ -1611,11 +1682,16 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [approvalHistoryCurrentPage, setApprovalHistoryCurrentPage] = useState(1)
   const [analyticsCurrentPage, setAnalyticsCurrentPage] = useState(1)
   const [adminActivePanel, setAdminActivePanel] = useState('dashboard')
+  const [messageTab, setMessageTab] = useState('unread')
+  const [messageSearchQuery, setMessageSearchQuery] = useState('')
+  const [messageThreads, setMessageThreads] = useState([])
+  const [isMessagesLoading, setIsMessagesLoading] = useState(false)
+  const [messagesError, setMessagesError] = useState('')
   const normalizedSearch = tableSearchQuery.trim().toLowerCase()
   const hasTableSearchValue = normalizedSearch.length > 0
   const isTableSearchVisible = isTableSearchOpen || hasTableSearchValue
   const filteredUsers = manageUsers.filter((user) => {
-    const matchesRole = tableRoleFilter === 'all' || user.role.toLowerCase() === tableRoleFilter
+    const matchesRole = tableRoleFilter === 'all' || getRoleOptionFromLabel(user.role) === tableRoleFilter
     const matchesSearch = !normalizedSearch || (
       user.name.toLowerCase().includes(normalizedSearch) ||
       user.email.toLowerCase().includes(normalizedSearch) ||
@@ -1636,8 +1712,33 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const endIndex = totalResults === 0 ? 0 : Math.min(startIndex + PAGE_SIZE, totalResults)
   const pagedUsers = sortedUsers.slice(startIndex, endIndex)
   const visiblePages = getVisiblePageNumbers(activePage, totalPages)
+  const normalizedManageSearch = manageSearchQuery.trim().toLowerCase()
+  const hasManageSearchValue = normalizedManageSearch.length > 0
+  const isManageSearchVisible = isManageSearchOpen || hasManageSearchValue
+  const getManageRoleOption = (role = '') => {
+    const normalizedRole = role.trim().toLowerCase()
+    if (!normalizedRole) return 'employee'
+    return normalizedRole.includes('admin') ? 'admin' : 'employee'
+  }
+  const filteredManageUsers = manageUsers.filter((user) => {
+    const matchesRole = manageRoleFilter === 'all' || getManageRoleOption(user.role) === manageRoleFilter
+    const matchesSearch = !normalizedManageSearch || (
+      user.name.toLowerCase().includes(normalizedManageSearch) ||
+      user.email.toLowerCase().includes(normalizedManageSearch) ||
+      user.role.toLowerCase().includes(normalizedManageSearch)
+    )
+    return matchesRole && matchesSearch
+  })
+  const sortedManageUsers = [...filteredManageUsers].sort((a, b) => {
+    if (manageSortMode === 'az') {
+      return a.name.localeCompare(b.name)
+    }
+    const dateA = a.createdAt || a.joined || 0
+    const dateB = b.createdAt || b.joined || 0
+    return new Date(dateB) - new Date(dateA)
+  })
   const topScores = [98.5, 97.2, 95.8, 94.5, 92.1]
-  const topPerformers = manageUsers.slice(0, 5).map((user, index) => ({
+  const _topPerformers = manageUsers.slice(0, 5).map((user, index) => ({
     ...user,
     score: topScores[index] ?? 90,
     tasks: 95 + (4 - index) * 9,
@@ -1706,14 +1807,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const analyticsEndIndex = analyticsTotalResults === 0 ? 0 : Math.min(analyticsStartIndex + ANALYTICS_PAGE_SIZE, analyticsTotalResults)
   const pagedAnalyticsBreakdown = sortedAnalyticsBreakdown.slice(analyticsStartIndex, analyticsEndIndex)
   const visibleAnalyticsPages = getVisiblePageNumbers(analyticsActivePage, analyticsTotalPages)
-  const manageTotalResults = manageUsers.length
+  const manageTotalResults = sortedManageUsers.length
   const manageTotalPages = Math.max(1, Math.ceil(manageTotalResults / MANAGE_PAGE_SIZE))
   const manageActivePage = Math.min(manageCurrentPage, manageTotalPages)
   const manageStartIndex = manageTotalResults === 0 ? 0 : (manageActivePage - 1) * MANAGE_PAGE_SIZE
   const manageEndIndex = manageTotalResults === 0 ? 0 : Math.min(manageStartIndex + MANAGE_PAGE_SIZE, manageTotalResults)
   const visibleManagePages = getVisiblePageNumbers(manageActivePage, manageTotalPages)
 
-  const manageMembers = manageUsers.slice(manageStartIndex, manageEndIndex)
+  const manageMembers = sortedManageUsers.slice(manageStartIndex, manageEndIndex)
   const approvalQueue = applications.map((application) => {
     const firstName = application.first_name || ''
     const lastName = application.last_name || ''
@@ -1755,7 +1856,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const hasApprovalSearchValue = normalizedApprovalSearch.length > 0
   const isApprovalSearchVisible = isApprovalSearchOpen || hasApprovalSearchValue
   const filteredApprovalQueue = approvalQueue.filter((user) => (
-    (approvalRoleFilter === 'all' || user.requestedRole.toLowerCase() === approvalRoleFilter) &&
+    (approvalRoleFilter === 'all' || getRoleOptionFromLabel(user.requestedRoleLabel) === approvalRoleFilter) &&
     (approvalYearFilter === 'all' || String(new Date(user.joined).getFullYear()) === approvalYearFilter) &&
     (
       !normalizedApprovalSearch ||
@@ -1780,10 +1881,28 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const normalizedApprovalHistorySearch = approvalHistorySearchQuery.trim().toLowerCase()
   const hasApprovalHistorySearchValue = normalizedApprovalHistorySearch.length > 0
   const isApprovalHistorySearchVisible = isApprovalHistorySearchOpen || hasApprovalHistorySearchValue
-  const visibleApprovalHistoryEntries = approvalHistory.filter((entry) => !archivedApprovalHistoryIds.has(entry.id))
-  const filteredApprovalHistory = visibleApprovalHistoryEntries.filter((entry) => {
-    if (approvalHistoryRoleFilter !== 'all' && entry.role.toLowerCase() !== approvalHistoryRoleFilter) return false
+  const isApprovalHistoryArchived = (entry) => Boolean(entry.archivedAt) || archivedApprovalHistoryIds.has(entry.id)
+  const archivedApprovalHistoryEntries = approvalHistory.filter((entry) => isApprovalHistoryArchived(entry))
+  const approvalHistorySourceEntries = showApprovalHistoryArchive
+    ? archivedApprovalHistoryEntries
+    : approvalHistory.filter((entry) => !isApprovalHistoryArchived(entry))
+  const approvalHistoryYears = Array.from(new Set(approvalHistorySourceEntries.map((entry) => entry.year)))
+    .sort((a, b) => Number(b) - Number(a))
+  const normalizedDecisionFilter = approvalHistoryDecisionFilter.toLowerCase()
+  const matchesDecisionFilter = (decision) => {
+    if (normalizedDecisionFilter === 'all') return true
+    const normalizedDecision = (decision || '').toLowerCase()
+    if (normalizedDecisionFilter === 'approved') {
+      return normalizedDecision === 'accepted' || normalizedDecision === 'approved'
+    }
+    if (normalizedDecisionFilter === 'rejected') {
+      return normalizedDecision === 'declined' || normalizedDecision === 'rejected'
+    }
+    return normalizedDecision === normalizedDecisionFilter
+  }
+  const filteredApprovalHistory = approvalHistorySourceEntries.filter((entry) => {
     if (approvalHistoryYearFilter !== 'all' && entry.year !== approvalHistoryYearFilter) return false
+    if (!matchesDecisionFilter(entry.decision)) return false
     if (!normalizedApprovalHistorySearch) return true
     return (
       entry.name.toLowerCase().includes(normalizedApprovalHistorySearch) ||
@@ -1830,7 +1949,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const averageInternProgress = internAnalyticsUsers.length > 0
     ? `${Math.round(internAnalyticsUsers.reduce((sum, user) => sum + user.averageScore, 0) / internAnalyticsUsers.length)}%`
     : '0%'
-  const evaluationSummary = [
+  const _evaluationSummary = [
     { label: 'Interns For Review', value: Math.max(internUsers.length - completedEvaluationCount, 0), note: 'Active queue awaiting scoring', icon: <IconBook2 size={18} /> },
     { label: 'Now Evaluating', value: inProgressEvaluationCount, note: 'Drafts currently in progress', icon: <IconUserCheck size={18} /> },
     { label: 'Average Progress', value: averageInternProgress, note: 'Overall intern benchmark', icon: <IconReport size={18} /> },
@@ -1877,7 +1996,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const activeEvaluationQueue = evaluationQueue.filter((item) => item.pendingCount > 0)
   const normalizedEvaluationSearch = evaluationSearchQuery.trim().toLowerCase()
   const hasEvaluationSearchValue = normalizedEvaluationSearch.length > 0
-  const isEvaluationSearchVisible = isEvaluationSearchOpen || hasEvaluationSearchValue
+  const _isEvaluationSearchVisible = isEvaluationSearchOpen || hasEvaluationSearchValue
   const filteredEvaluationQueue = activeEvaluationQueue.filter((item) => (
     !normalizedEvaluationSearch ||
     item.name.toLowerCase().includes(normalizedEvaluationSearch) ||
@@ -1889,8 +2008,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const evaluationActivePage = Math.min(evaluationCurrentPage, evaluationTotalPages)
   const evaluationStartIndex = evaluationTotalResults === 0 ? 0 : (evaluationActivePage - 1) * EVALUATION_PAGE_SIZE
   const evaluationEndIndex = evaluationTotalResults === 0 ? 0 : Math.min(evaluationStartIndex + EVALUATION_PAGE_SIZE, evaluationTotalResults)
-  const pagedEvaluationQueue = filteredEvaluationQueue.slice(evaluationStartIndex, evaluationEndIndex)
-  const visibleEvaluationPages = getVisiblePageNumbers(evaluationActivePage, evaluationTotalPages)
+  const _pagedEvaluationQueue = filteredEvaluationQueue.slice(evaluationStartIndex, evaluationEndIndex)
+  const _visibleEvaluationPages = getVisiblePageNumbers(evaluationActivePage, evaluationTotalPages)
   const evaluationHistoryEntries = Object.entries(evaluationRecords)
     .flatMap(([email, record]) => {
       const matchedUser = manageUsers.find((user) => user.email === email)
@@ -1914,9 +2033,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     })
   const normalizedEvaluationHistorySearch = evaluationHistorySearchQuery.trim().toLowerCase()
   const hasEvaluationHistorySearchValue = normalizedEvaluationHistorySearch.length > 0
-  const isEvaluationHistorySearchVisible = isEvaluationHistorySearchOpen || hasEvaluationHistorySearchValue
+  const _isEvaluationHistorySearchVisible = isEvaluationHistorySearchOpen || hasEvaluationHistorySearchValue
   const visibleEvaluationHistoryEntries = evaluationHistoryEntries.filter((entry) => !archivedEvaluationHistoryIds.has(entry.id))
-  const evaluationHistoryYears = Array.from(new Set(visibleEvaluationHistoryEntries.map((entry) => entry.year))).sort((a, b) => b.localeCompare(a))
+  const _evaluationHistoryYears = Array.from(new Set(visibleEvaluationHistoryEntries.map((entry) => entry.year))).sort((a, b) => b.localeCompare(a))
   const filteredEvaluationHistory = visibleEvaluationHistoryEntries.filter((entry) => {
     if (evaluationHistoryYearFilter !== 'all' && entry.year !== evaluationHistoryYearFilter) return false
     if (!normalizedEvaluationHistorySearch) return true
@@ -1940,9 +2059,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const evaluationHistoryEndIndex = evaluationHistoryTotalResults === 0
     ? 0
     : Math.min(evaluationHistoryStartIndex + EVALUATION_PAGE_SIZE, evaluationHistoryTotalResults)
-  const pagedEvaluationHistory = sortedEvaluationHistory.slice(evaluationHistoryStartIndex, evaluationHistoryEndIndex)
-  const visibleEvaluationHistoryPages = getVisiblePageNumbers(evaluationHistoryActivePage, evaluationHistoryTotalPages)
-  const evaluationRubric = [
+  const _pagedEvaluationHistory = sortedEvaluationHistory.slice(evaluationHistoryStartIndex, evaluationHistoryEndIndex)
+  const _visibleEvaluationHistoryPages = getVisiblePageNumbers(evaluationHistoryActivePage, evaluationHistoryTotalPages)
+  const _evaluationRubric = [
     { title: 'Task Accuracy', description: 'Measure intern output quality, instruction-following, and correction rate.' },
     { title: 'Attendance and Hours', description: 'Check internship hours submitted, schedule consistency, and required progress.' },
     { title: 'Coaching Notes', description: 'Record strengths, blockers, and next-step guidance for each intern review.' },
@@ -2018,7 +2137,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
         return
       }
 
-      setApprovalHistory((data || []).map((entry) => {
+      const mappedApprovalHistory = (data || []).map((entry) => {
         const decidedAt = entry.decided_at ? new Date(entry.decided_at) : null
         const createdAt = entry.account_created_at ? new Date(entry.account_created_at) : null
         const yearSource = decidedAt || createdAt
@@ -2029,17 +2148,91 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
           email: entry.applicant_email || '—',
           role: entry.role || 'Applicant',
           decision: entry.decision || 'declined',
+          archivedAt: entry.archived_at || null,
           accountCreated: createdAt ? formatAdminDate(createdAt) : '—',
           decisionDate: decidedAt ? formatAdminDate(decidedAt) : '—',
           year: yearSource ? String(yearSource.getFullYear()) : String(new Date().getFullYear()),
         }
-      }))
+      })
+
+      setApprovalHistory(mappedApprovalHistory)
+      const archivedIdsFromView = mappedApprovalHistory
+        .filter((entry) => entry.archivedAt)
+        .map((entry) => entry.id)
+      setArchivedApprovalHistoryIds(new Set(archivedIdsFromView))
+
+      if (mappedApprovalHistory.length > 0 && archivedIdsFromView.length === 0) {
+        const { data: archivedData, error: archivedError } = await supabase
+          .from('approval_history')
+          .select('id, archived_at')
+          .not('archived_at', 'is', null)
+
+        if (!isMounted) return
+        if (archivedError) {
+          console.warn('Failed to load archived approvals', archivedError)
+          return
+        }
+
+        const archivedIds = new Set((archivedData || []).map((entry) => entry.id))
+        setArchivedApprovalHistoryIds(archivedIds)
+        setApprovalHistory((prev) => prev.map((entry) => (
+          archivedIds.has(entry.id) ? { ...entry, archivedAt: entry.archivedAt || new Date().toISOString() } : entry
+        )))
+      }
     }
 
     loadApplications()
     loadApprovalHistory()
     return () => {
       isMounted = false
+    }
+  }, [adminActivePanel, authSession, isAuthReady])
+
+  useEffect(() => {
+    if (adminActivePanel !== 'messages') return
+    if (!isAuthReady) return
+    if (!authSession) {
+      setMessagesError('Please sign in to load messages.')
+      setMessageThreads([])
+      return
+    }
+    let isMounted = true
+    const loadMessages = async () => {
+      setIsMessagesLoading(true)
+      setMessagesError('')
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load messages', error)
+        setMessagesError('Unable to load messages.')
+        setMessageThreads([])
+        setIsMessagesLoading(false)
+        return
+      }
+      const mapped = (data || []).map(mapContactMessageToThread)
+      setMessageThreads(mapped)
+      if (mapped.length > 0) {
+        setSelectedMessageId((prev) => (mapped.some((item) => item.id === prev) ? prev : mapped[0].id))
+      }
+      setIsMessagesLoading(false)
+    }
+    loadMessages()
+    const channel = supabase
+      .channel('contact-messages-stream')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contact_messages' },
+        () => {
+          loadMessages()
+        }
+      )
+      .subscribe()
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
     }
   }, [adminActivePanel, authSession, isAuthReady])
 
@@ -2052,16 +2245,39 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
         setManageUsers([])
         return
       }
-      const data = await fetchUsers()
+      const [userRows, adminRows] = await Promise.all([fetchUsers(), fetchAdmins()])
+      const sessionUser = authSession?.user
+      const sessionAdminRow = sessionUser
+        ? mapAdminRowToManageUser({
+            id: sessionUser.id,
+            email: sessionUser.email,
+            full_name: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name,
+            created_at: sessionUser.created_at,
+          })
+        : null
       if (!isMounted) return
-      if (!data.length) return
+      const combined = sessionAdminRow ? [...userRows, ...adminRows, sessionAdminRow] : [...userRows, ...adminRows]
+      const seen = new Set()
+      const deduped = combined.filter((entry) => {
+        const key = entry.email || entry.id
+        if (!key || seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      setManageUsers(deduped)
     }
 
     loadUsers()
     return () => {
       isMounted = false
     }
-  }, [authSession, isAuthReady])
+  }, [authSession, fetchAdmins, fetchUsers, isAuthReady, mapAdminRowToManageUser])
+
+  useEffect(() => {
+    if (adminActivePanel === 'messages') {
+      setMessageTab('unread')
+    }
+  }, [adminActivePanel])
 
   useEffect(() => {
     const channel = supabase
@@ -2136,11 +2352,17 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       if (analyticsFilterRef.current && !analyticsFilterRef.current.contains(event.target)) {
         setIsAnalyticsFilterOpen(false)
       }
+      if (manageFilterRef.current && !manageFilterRef.current.contains(event.target)) {
+        setIsManageFilterOpen(false)
+      }
       if (!event.target.closest('.admin-manage-row-actions')) {
         setOpenMemberActionMenuId(null)
       }
       if (!event.target.closest('.admin-approval-history-row-actions')) {
         setOpenApprovalHistoryActionMenuId(null)
+      }
+      if (!event.target.closest('.admin-message-row-actions')) {
+        setOpenMessageActionId(null)
       }
     }
 
@@ -2166,11 +2388,15 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
   useEffect(() => {
     setApprovalHistoryCurrentPage(1)
-  }, [approvalHistorySearchQuery, approvalHistoryYearFilter, approvalHistorySortMode, approvalHistoryRoleFilter])
+  }, [approvalHistorySearchQuery, approvalHistoryYearFilter, approvalHistorySortMode, approvalHistoryDecisionFilter])
 
   useEffect(() => {
     setAnalyticsCurrentPage(1)
   }, [analyticsSearchQuery, analyticsSortMode])
+
+  useEffect(() => {
+    setManageCurrentPage(1)
+  }, [manageSearchQuery, manageRoleFilter, manageSortMode])
 
   useEffect(() => {
     if (isTableSearchOpen) {
@@ -2207,6 +2433,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       analyticsSearchInputRef.current?.focus()
     }
   }, [isAnalyticsSearchOpen])
+
+  useEffect(() => {
+    if (isManageSearchOpen) {
+      manageSearchInputRef.current?.focus()
+    }
+  }, [isManageSearchOpen])
 
   useEffect(() => {
     if (!isAdminCountryOpen) return undefined
@@ -2602,7 +2834,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     }
   }
 
-  const handleOpenEvaluation = (item) => {
+  const _handleOpenEvaluation = (item) => {
     const existingRecord = evaluationRecords[item.email]
     setSelectedEvaluationItem(item)
     setSelectedEvaluationModalTask(item.track)
@@ -2691,7 +2923,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setSelectedEvaluationDetailTask(item.track)
   }
 
-  const handleOpenEvaluationHistoryDetails = (entry) => {
+  const _handleOpenEvaluationHistoryDetails = (entry) => {
     handleOpenEvaluationDetails({
       id: `eval-${entry.email}`,
       name: entry.name,
@@ -2808,15 +3040,68 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     handleCloseEvaluation()
   }
 
-  const handleArchiveApprovalHistory = (entryId) => {
+  const handleArchiveApprovalHistory = async (entryId) => {
     setArchivedApprovalHistoryIds((prev) => {
       const next = new Set(prev)
       next.add(entryId)
       return next
     })
+    setApprovalHistory((prev) => prev.map((entry) => (
+      entry.id === entryId ? { ...entry, archivedAt: new Date().toISOString() } : entry
+    )))
+
+    const { error } = await supabase
+      .from('approval_history')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', entryId)
+
+    if (error) {
+      console.error('Failed to archive approval history', error)
+      setArchivedApprovalHistoryIds((prev) => {
+        if (!prev.has(entryId)) return prev
+        const next = new Set(prev)
+        next.delete(entryId)
+        return next
+      })
+      setApprovalHistory((prev) => prev.map((entry) => (
+        entry.id === entryId ? { ...entry, archivedAt: null } : entry
+      )))
+    }
   }
 
-  const handleDeleteApprovalHistory = (entryId) => {
+  const handleRestoreApprovalHistory = async (entryId) => {
+    setArchivedApprovalHistoryIds((prev) => {
+      if (!prev.has(entryId)) return prev
+      const next = new Set(prev)
+      next.delete(entryId)
+      return next
+    })
+    setApprovalHistory((prev) => prev.map((entry) => (
+      entry.id === entryId ? { ...entry, archivedAt: null } : entry
+    )))
+
+    const { error } = await supabase
+      .from('approval_history')
+      .update({ archived_at: null })
+      .eq('id', entryId)
+
+    if (error) {
+      console.error('Failed to restore approval history', error)
+      setArchivedApprovalHistoryIds((prev) => {
+        const next = new Set(prev)
+        next.add(entryId)
+        return next
+      })
+      setApprovalHistory((prev) => prev.map((entry) => (
+        entry.id === entryId ? { ...entry, archivedAt: new Date().toISOString() } : entry
+      )))
+    }
+  }
+
+  const handleDeleteApprovalHistory = async (entryId) => {
+    const previousApprovalHistory = approvalHistory
+    const previousArchivedIds = archivedApprovalHistoryIds
+
     setApprovalHistory((prev) => prev.filter((entry) => entry.id !== entryId))
     setArchivedApprovalHistoryIds((prev) => {
       if (!prev.has(entryId)) return prev
@@ -2824,6 +3109,32 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       next.delete(entryId)
       return next
     })
+
+    const { error } = await supabase
+      .from('approval_history')
+      .delete()
+      .eq('id', entryId)
+
+    if (error) {
+      console.error('Failed to delete approval history', error)
+      setApprovalHistory(previousApprovalHistory)
+      setArchivedApprovalHistoryIds(previousArchivedIds)
+    }
+  }
+
+  const handleRequestApprovalHistoryDelete = (entry) => {
+    if (!entry) return
+    setPendingApprovalHistoryDelete(entry)
+  }
+
+  const handleCancelApprovalHistoryDelete = () => {
+    setPendingApprovalHistoryDelete(null)
+  }
+
+  const handleConfirmApprovalHistoryDelete = () => {
+    if (!pendingApprovalHistoryDelete) return
+    handleDeleteApprovalHistory(pendingApprovalHistoryDelete.id)
+    setPendingApprovalHistoryDelete(null)
   }
 
   const removeTaskFromRecordMap = (sourceMap, task) => {
@@ -2832,7 +3143,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     return remaining
   }
 
-  const handleArchiveEvaluationHistory = (entryId) => {
+  const _handleArchiveEvaluationHistory = (entryId) => {
     setArchivedEvaluationHistoryIds((prev) => {
       const next = new Set(prev)
       next.add(entryId)
@@ -2840,7 +3151,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     })
   }
 
-  const handleDeleteEvaluationHistory = (entry) => {
+  const _handleDeleteEvaluationHistory = (entry) => {
     setEvaluationRecords((prev) => {
       const existingRecord = prev[entry.email]
       if (!existingRecord) return prev
@@ -2875,7 +3186,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     )))
   }
 
-  const handleApprovalDecision = (event, notificationId, decision) => {
+  const _handleApprovalDecision = (event, notificationId, decision) => {
     event.stopPropagation()
     setNotifications((prev) => prev.map((item) => {
       if (item.id !== notificationId) return item
@@ -3156,10 +3467,397 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const activeEvaluationModalDue = activeEvaluationModalTaskIndex >= 0
     ? evaluationDueTimes[activeEvaluationModalTaskIndex % evaluationDueTimes.length]
     : (selectedEvaluationItem?.due || '—')
-
+  const [selectedMessageId, setSelectedMessageId] = useState('')
+  const [openMessageId, setOpenMessageId] = useState(null)
+  const [isComposeOpen, setIsComposeOpen] = useState(false)
+  const [composeMode, setComposeMode] = useState('new')
+  const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false)
+  const [openMessageActionId, setOpenMessageActionId] = useState(null)
+  const [pendingDeleteMessage, setPendingDeleteMessage] = useState(null)
+  const [composeMessageId, setComposeMessageId] = useState(null)
+  const [composeStatus, setComposeStatus] = useState({ type: '', message: '' })
+  const [isComposeSubmitting, setIsComposeSubmitting] = useState(false)
+  const [composeDraft, setComposeDraft] = useState({
+    toName: '',
+    toEmail: '',
+    fromName: '',
+    fromEmail: '',
+    message: '',
+  })
+  const messageTabs = [
+    { id: 'unread', label: 'Unread' },
+    { id: 'old', label: 'Old' },
+    { id: 'starred', label: 'Starred' },
+    { id: 'archive', label: 'Archive' },
+  ]
+  const deriveMessageCategory = (thread) => {
+    if (thread.isArchived) return 'archive'
+    if (thread.isStarred) return 'starred'
+    if (!thread.isRead) return 'unread'
+    return 'old'
+  }
+  const mapContactMessageToThread = (row) => {
+    const isRead = row.is_read ?? false
+    const isArchived = row.is_archived ?? false
+    const isStarred = row.is_starred ?? false
+    const body = row.message || ''
+    const thread = {
+      id: row.id,
+      name: row.name || 'Client',
+      email: row.email || '—',
+      role: row.role || 'Client',
+      preview: truncateMessage(body || row.subject || ''),
+      time: formatMessageTime(row.created_at),
+      unreadCount: isRead ? 0 : 1,
+      avatar: getInitialsFromName(row.name || ''),
+      subject: row.subject || 'Website Message',
+      body,
+      isRead,
+      isArchived,
+      isStarred,
+    }
+    return { ...thread, category: deriveMessageCategory(thread) }
+  }
+  const messageCounts = messageThreads.reduce((acc, thread) => {
+    acc[thread.category] = (acc[thread.category] || 0) + 1
+    return acc
+  }, { unread: 0, old: 0, starred: 0, archive: 0 })
+  const updateMessageThread = (id, updates) => {
+    setMessageThreads((prev) => prev.map((thread) => {
+      if (thread.id !== id) return thread
+      const next = { ...thread, ...updates }
+      return { ...next, category: deriveMessageCategory(next) }
+    }))
+  }
+  const handleMessageUpdate = async (id, updates) => {
+    const dbUpdates = {}
+    if (Object.prototype.hasOwnProperty.call(updates, 'isRead')) dbUpdates.is_read = updates.isRead
+    if (Object.prototype.hasOwnProperty.call(updates, 'isArchived')) dbUpdates.is_archived = updates.isArchived
+    if (Object.prototype.hasOwnProperty.call(updates, 'isStarred')) dbUpdates.is_starred = updates.isStarred
+    const { error } = await supabase
+      .from('contact_messages')
+      .update(dbUpdates)
+      .eq('id', id)
+    if (error) {
+      console.error('Failed to update message', error)
+      setMessagesError('Unable to update message.')
+      return false
+    }
+    updateMessageThread(id, updates)
+    return true
+  }
+  const handleMessageDelete = async (id) => {
+    const { error } = await supabase
+      .from('contact_messages')
+      .delete()
+      .eq('id', id)
+    if (error) {
+      console.error('Failed to delete message', error)
+      setMessagesError('Unable to delete message.')
+      return false
+    }
+    setMessageThreads((prev) => prev.filter((thread) => thread.id !== id))
+    return true
+  }
+  const handleComposeSubmit = async () => {
+    setComposeStatus({ type: '', message: '' })
+    if (!composeDraft.toName.trim() || !composeDraft.toEmail.trim() || !composeDraft.message.trim()) {
+      setComposeStatus({ type: 'error', message: 'Please complete the required fields.' })
+      return
+    }
+    if (composeMode === 'reply' && !composeMessageId) {
+      setComposeStatus({ type: 'error', message: 'Unable to send reply. Please reopen the message.' })
+      return
+    }
+    setIsComposeSubmitting(true)
+    const emailSubject = `Reply from Lifewood`
+    const emailText = `Hi ${composeDraft.toName.trim()},\n\n${composeDraft.message.trim()}\n\n— Lifewood`
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2d22;">
+        <p>Hi ${composeDraft.toName.trim()},</p>
+        <p>${composeDraft.message.trim().replace(/\n/g, '<br/>')}</p>
+        <p style="margin-top: 24px;">— Lifewood</p>
+      </div>
+    `
+    const { error: sendError } = await supabase.functions.invoke('send-reply', {
+      body: {
+        to: composeDraft.toEmail.trim(),
+        to_name: composeDraft.toName.trim(),
+        from_name: composeDraft.fromName.trim(),
+        from_email: composeDraft.fromEmail.trim(),
+        subject: emailSubject,
+        text: emailText,
+        html: emailHtml,
+      },
+    })
+    if (sendError) {
+      console.error('Failed to send reply email', sendError)
+      setComposeStatus({ type: 'error', message: 'Unable to send reply email. Please try again.' })
+      setIsComposeSubmitting(false)
+      return
+    }
+    const payload = {
+      contact_message_id: composeMessageId,
+      to_name: composeDraft.toName.trim(),
+      to_email: composeDraft.toEmail.trim(),
+      from_name: composeDraft.fromName.trim() || null,
+      from_email: composeDraft.fromEmail.trim() || null,
+      message: composeDraft.message.trim(),
+    }
+    const { error } = await supabase
+      .from('contact_message_replies')
+      .insert(payload)
+    if (error) {
+      console.error('Failed to save reply', error)
+      setComposeStatus({ type: 'error', message: 'Email sent but failed to save reply.' })
+      setIsComposeSubmitting(false)
+      return
+    }
+    setComposeStatus({ type: 'success', message: 'Reply sent successfully.' })
+    setIsComposeSubmitting(false)
+    setTimeout(() => {
+      setIsComposeOpen(false)
+      setComposeDraft({ toName: '', toEmail: '', fromName: '', fromEmail: '', message: '' })
+      setComposeMessageId(null)
+    }, 600)
+  }
+  const normalizedMessageSearch = messageSearchQuery.trim().toLowerCase()
+  const hasMessageSearchValue = Boolean(normalizedMessageSearch)
+  const isMessageSearchVisible = isMessageSearchOpen || hasMessageSearchValue
+  const visibleMessageThreads = messageThreads.filter((thread) => {
+    const matchesTab = thread.category === messageTab
+    const matchesSearch = !normalizedMessageSearch || (
+      thread.name.toLowerCase().includes(normalizedMessageSearch) ||
+      thread.role.toLowerCase().includes(normalizedMessageSearch) ||
+      thread.preview.toLowerCase().includes(normalizedMessageSearch)
+    )
+    return matchesTab && matchesSearch
+  })
+  const selectedMessageThread = visibleMessageThreads.find((thread) => thread.id === selectedMessageId) || visibleMessageThreads[0] || null
+  const openMessageThread = messageThreads.find((thread) => thread.id === openMessageId) || null
+  const openComposeModal = ({ mode = 'new', draft = {}, messageId = null } = {}) => {
+    setComposeMode(mode)
+    setComposeMessageId(messageId)
+    setComposeStatus({ type: '', message: '' })
+    setComposeDraft({
+      toName: '',
+      toEmail: '',
+      fromName: '',
+      fromEmail: '',
+      message: '',
+      ...draft,
+    })
+    setIsComposeOpen(true)
+  }
   return (
     <main className="dashboard-page admin-dashboard-page">
       <AnimatePresence>
+        {openMessageThread ? (
+          <motion.div
+            className="admin-message-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setOpenMessageId(null)}
+          >
+            <motion.section
+              className="admin-message-modal"
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-message-modal-close"
+                aria-label="Close message"
+                onClick={() => setOpenMessageId(null)}
+              >
+                <IconX size={18} />
+              </button>
+              <header className="admin-message-modal-header">
+                <p className="admin-message-modal-kicker">Message from</p>
+                <h3>{openMessageThread.name}</h3>
+                <div className="admin-message-modal-meta">
+                  <span>{openMessageThread.email}</span>
+                  <span>{openMessageThread.time}</span>
+                </div>
+              </header>
+              <div className="admin-message-modal-body">
+                <h4>{openMessageThread.subject}</h4>
+                <p className="admin-message-modal-text">{openMessageThread.body}</p>
+              </div>
+              <div className="admin-message-modal-actions">
+                <button
+                  type="button"
+                  className="admin-message-modal-reply"
+                  onClick={() => {
+                    openComposeModal({
+                      mode: 'reply',
+                      messageId: openMessageThread.id,
+                      draft: {
+                        toName: openMessageThread.name,
+                        toEmail: openMessageThread.email,
+                        message: '',
+                      },
+                    })
+                    setOpenMessageId(null)
+                  }}
+                >
+                  Reply
+                </button>
+              </div>
+            </motion.section>
+          </motion.div>
+        ) : null}
+        {pendingDeleteMessage ? (
+          <motion.div
+            className="admin-message-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPendingDeleteMessage(null)}
+          >
+            <motion.section
+              className="admin-message-modal admin-message-confirm-modal"
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-message-modal-close"
+                aria-label="Close delete confirmation"
+                onClick={() => setPendingDeleteMessage(null)}
+              >
+                <IconX size={18} />
+              </button>
+              <header className="admin-message-modal-header">
+                <h3>Are you sure?</h3>
+              </header>
+              <div className="admin-message-modal-body">
+                <p className="admin-message-modal-text">
+                  This will permanently remove the message from your inbox.
+                </p>
+              </div>
+              <div className="admin-message-modal-actions">
+                <button
+                  type="button"
+                  className="admin-message-modal-reply outline"
+                  onClick={() => setPendingDeleteMessage(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="admin-message-modal-reply danger"
+                  onClick={() => {
+                    handleMessageDelete(pendingDeleteMessage.id)
+                    setPendingDeleteMessage(null)
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.section>
+          </motion.div>
+        ) : null}
+        {isComposeOpen ? (
+          <motion.div
+            className="admin-message-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsComposeOpen(false)}
+          >
+            <motion.section
+              className="admin-message-modal"
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-message-modal-close"
+                aria-label="Close message composer"
+                onClick={() => setIsComposeOpen(false)}
+              >
+                <IconX size={18} />
+              </button>
+              <header className="admin-message-modal-header">
+                <p className="admin-message-modal-kicker">Compose</p>
+                <h3>{composeMode === 'reply' ? 'Reply to a message' : 'Write a new message'}</h3>
+              </header>
+              <form className="admin-message-compose-form">
+                <label className="admin-message-compose-field">
+                  <span>To</span>
+                  <input
+                    type="text"
+                    value={composeDraft.toName}
+                    onChange={(event) => setComposeDraft((prev) => ({ ...prev, toName: event.target.value }))}
+                    placeholder="Recipient name"
+                    readOnly={composeMode === 'reply'}
+                  />
+                </label>
+                <label className="admin-message-compose-field">
+                  <span>To Email</span>
+                  <input
+                    type="email"
+                    value={composeDraft.toEmail}
+                    onChange={(event) => setComposeDraft((prev) => ({ ...prev, toEmail: event.target.value }))}
+                    placeholder="recipient@company.com"
+                    readOnly={composeMode === 'reply'}
+                  />
+                </label>
+                <label className="admin-message-compose-field">
+                  <span>From</span>
+                  <input
+                    type="text"
+                    value={composeDraft.fromName}
+                    onChange={(event) => setComposeDraft((prev) => ({ ...prev, fromName: event.target.value }))}
+                    placeholder="Your name"
+                  />
+                </label>
+                <label className="admin-message-compose-field">
+                  <span>From Email</span>
+                  <input
+                    type="email"
+                    value={composeDraft.fromEmail}
+                    onChange={(event) => setComposeDraft((prev) => ({ ...prev, fromEmail: event.target.value }))}
+                    placeholder="you@company.com"
+                  />
+                </label>
+                <label className="admin-message-compose-field">
+                  <span>Message</span>
+                  <textarea
+                    rows={6}
+                    value={composeDraft.message}
+                    onChange={(event) => setComposeDraft((prev) => ({ ...prev, message: event.target.value }))}
+                    placeholder="Write your reply"
+                  />
+                </label>
+                {composeStatus.message ? (
+                  <p className={`admin-message-compose-status ${composeStatus.type}`}>
+                    {composeStatus.message}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  className="admin-message-modal-reply"
+                  disabled={isComposeSubmitting}
+                  onClick={handleComposeSubmit}
+                >
+                  {isComposeSubmitting ? 'Sending...' : 'Send Message'}
+                </button>
+              </form>
+            </motion.section>
+          </motion.div>
+        ) : null}
         {selectedDashboardUser ? (
           <motion.div
             className="admin-member-modal-overlay"
@@ -3583,6 +4281,49 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
             </motion.section>
           </motion.div>
         ) : null}
+        {pendingApprovalHistoryDelete ? (
+          <motion.div
+            className="admin-confirm-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleCancelApprovalHistoryDelete}
+          >
+            <motion.section
+              className="admin-confirm-modal"
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="admin-confirm-close"
+                aria-label="Close confirmation"
+                onClick={handleCancelApprovalHistoryDelete}
+              >
+                <IconX size={18} />
+              </button>
+              <h3>Delete Approval History</h3>
+              <p>
+                Are you sure you want to delete {pendingApprovalHistoryDelete.name || 'this entry'}?
+              </p>
+              <div className="admin-confirm-actions">
+                <button type="button" className="admin-confirm-btn ghost" onClick={handleCancelApprovalHistoryDelete}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="admin-confirm-btn danger"
+                  onClick={handleConfirmApprovalHistoryDelete}
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.section>
+          </motion.div>
+        ) : null}
         {memberDeleteToast || approvalToast ? (
           <div className="admin-toast-stack">
             {memberDeleteToast ? (
@@ -3964,34 +4705,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
             </button>
             <button
               type="button"
-              className={`admin-dashboard-nav-parent ${adminActivePanel === 'evaluation' ? 'active' : ''}`}
-              onClick={() => {
-                setAdminActivePanel('evaluation')
-                setEvaluationSubtab('queue')
-              }}
+              className={adminActivePanel === 'messages' ? 'active' : ''}
+              onClick={() => setAdminActivePanel('messages')}
             >
-              <IconBook2 size={18} />
-              <span className="admin-dashboard-nav-label">Evaluation</span>
-              <span className="admin-dashboard-nav-arrow" aria-hidden="true">&#8250;</span>
+              <IconMessage size={18} />
+              <span className="admin-dashboard-nav-label">Messages</span>
             </button>
-            {adminActivePanel === 'evaluation' ? (
-              <div className="admin-dashboard-subnav" aria-label="Evaluation sections">
-                <button
-                  type="button"
-                  className={evaluationSubtab === 'queue' ? 'active' : ''}
-                  onClick={() => setEvaluationSubtab('queue')}
-                >
-                  <span className="admin-dashboard-nav-label">Evaluation Queue</span>
-                </button>
-                <button
-                  type="button"
-                  className={evaluationSubtab === 'history' ? 'active' : ''}
-                  onClick={() => setEvaluationSubtab('history')}
-                >
-                  <span className="admin-dashboard-nav-label">Evaluation History</span>
-                </button>
-              </div>
-            ) : null}
             <button
               type="button"
               className={`admin-dashboard-nav-parent ${adminActivePanel === 'user-approval' ? 'active' : ''}`}
@@ -4259,12 +4978,119 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <p>Latest registrations and updates</p>
                   </div>
                   <div className="admin-dashboard-table-tools">
-                    <button type="button" className="admin-dashboard-icon-btn" aria-label="Search users">
-                      <IconSearch size={18} />
-                    </button>
-                    <button type="button" className="admin-dashboard-icon-btn" aria-label="Filter users">
-                      <IconFilter size={18} />
-                    </button>
+                    <div
+                      className="admin-dashboard-search-trigger"
+                      onMouseEnter={() => setIsManageSearchOpen(true)}
+                      onMouseLeave={() => {
+                        if (!hasManageSearchValue) setIsManageSearchOpen(false)
+                      }}
+                    >
+                      <label className={`admin-dashboard-table-search ${isManageSearchVisible ? 'is-open' : ''}`}>
+                        <IconSearch size={18} />
+                        <input
+                          ref={manageSearchInputRef}
+                          type="text"
+                          placeholder="Search users..."
+                          aria-label="Search users"
+                          value={manageSearchQuery}
+                          onChange={(event) => setManageSearchQuery(event.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="admin-dashboard-icon-btn"
+                        aria-label="Search users"
+                        aria-pressed={isManageSearchVisible}
+                        onClick={() => {
+                          if (hasManageSearchValue) return
+                          setIsManageSearchOpen((prev) => !prev)
+                        }}
+                      >
+                        <IconSearch size={18} />
+                      </button>
+                    </div>
+                    <div className="admin-dashboard-filter-wrap" ref={manageFilterRef}>
+                      <button
+                        type="button"
+                        className="admin-dashboard-icon-btn"
+                        aria-label="Filter users"
+                        aria-expanded={isManageFilterOpen}
+                        onClick={() => setIsManageFilterOpen((prev) => !prev)}
+                      >
+                        <IconFilter size={18} />
+                      </button>
+                      {isManageFilterOpen ? (
+                        <div className="admin-dashboard-filter-menu" role="menu" aria-label="User filters">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className={manageSortMode === 'date' ? 'active' : ''}
+                            onClick={() => {
+                              setManageSortMode('date')
+                              setIsManageFilterOpen(false)
+                            }}
+                          >
+                            By Date
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className={manageSortMode === 'az' ? 'active' : ''}
+                            onClick={() => {
+                              setManageSortMode('az')
+                              setIsManageFilterOpen(false)
+                            }}
+                          >
+                            By A-Z
+                          </button>
+                          <div className={`admin-dashboard-filter-item has-submenu ${manageRoleFilter !== 'all' ? 'active' : ''}`}>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="admin-dashboard-filter-parent"
+                              aria-haspopup="menu"
+                            >
+                              Role
+                            </button>
+                            <div className="admin-dashboard-filter-submenu" role="menu" aria-label="Filter users by role">
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={manageRoleFilter === 'all' ? 'active' : ''}
+                                onClick={() => {
+                                  setManageRoleFilter('all')
+                                  setIsManageFilterOpen(false)
+                                }}
+                              >
+                                All Roles
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={manageRoleFilter === 'admin' ? 'active' : ''}
+                                onClick={() => {
+                                  setManageRoleFilter('admin')
+                                  setIsManageFilterOpen(false)
+                                }}
+                              >
+                                Admin
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={manageRoleFilter === 'employee' ? 'active' : ''}
+                                onClick={() => {
+                                  setManageRoleFilter('employee')
+                                  setIsManageFilterOpen(false)
+                                }}
+                              >
+                                Employee
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
@@ -4298,7 +5124,11 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           aria-expanded={openMemberActionMenuId === member.id}
                           onClick={() => setOpenMemberActionMenuId((prev) => (prev === member.id ? null : member.id))}
                         >
-                          <IconDotsVertical size={16} />
+                          <span className="admin-dashboard-row-dots" aria-hidden="true">
+                            <span />
+                            <span />
+                            <span />
+                          </span>
                         </button>
                         {openMemberActionMenuId === member.id ? (
                           <div className="admin-dashboard-filter-menu admin-manage-row-menu" role="menu" aria-label={`Actions for ${member.name}`}>
@@ -4606,344 +5436,221 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 </aside>
               </section>
             </>
-	          ) : adminActivePanel === 'evaluation' ? (
-	            <>
-	              <section className="admin-manage-hero admin-evaluation-hero">
-	                <div>
-	                  <h2>{evaluationSubtab === 'history' ? 'Evaluation History' : 'Evaluation Center'}</h2>
-	                  <p>
-	                    {evaluationSubtab === 'history'
-	                      ? 'Review completed evaluations and previously submitted assessment records.'
-	                      : 'Monitor intern assessments, progress checks, and upcoming review assignments.'}
-	                  </p>
-	                </div>
-	              </section>
-
-              <section className="admin-manage-stats admin-evaluation-stats">
-                {evaluationSummary.map((item) => (
-                  <article key={item.label} className="admin-dashboard-stat-card admin-manage-stat">
-                    <div className="admin-dashboard-stat-head">
-                      <span className="admin-dashboard-stat-icon">
-                        {item.icon}
-                      </span>
-                      <b className="positive">{item.note}</b>
-                    </div>
-                    <p>{item.label}</p>
-                    <h3>{item.value}</h3>
-                  </article>
-                ))}
-              </section>
-
-              <section className="admin-dashboard-data-grid admin-evaluation-grid">
-	                <section className="admin-dashboard-table-card admin-evaluation-card">
-	                  <div className="admin-dashboard-table-head">
-	                    <div>
-	                      <h2>{evaluationSubtab === 'history' ? 'Evaluation History' : 'Evaluation Queue'}</h2>
-	                      <p>
-	                        {evaluationSubtab === 'history'
-	                          ? 'Completed evaluations with task-level records and submitted outcomes.'
-	                          : 'Intern evaluations awaiting review and scoring.'}
-	                      </p>
-	                    </div>
-	                    {evaluationSubtab === 'queue' ? (
-	                      <div className="admin-dashboard-table-tools">
-	                        <div
-	                          className="admin-dashboard-search-trigger"
-	                          onMouseEnter={() => setIsEvaluationSearchOpen(true)}
-	                          onMouseLeave={() => {
-	                            if (!hasEvaluationSearchValue) setIsEvaluationSearchOpen(false)
-	                          }}
-	                        >
-	                          <label className={`admin-dashboard-table-search ${isEvaluationSearchVisible ? 'is-open' : ''}`}>
-	                            <IconSearch size={18} />
-	                            <input
-	                              ref={evaluationSearchInputRef}
-	                              type="text"
-	                              placeholder="Search evaluations..."
-	                              aria-label="Search evaluations"
-	                              value={evaluationSearchQuery}
-	                              onChange={(event) => setEvaluationSearchQuery(event.target.value)}
-	                            />
-	                          </label>
-	                          <button
-	                            type="button"
-	                            className="admin-dashboard-icon-btn"
-	                            aria-label="Search evaluations"
-	                            aria-pressed={isEvaluationSearchVisible}
-	                            onClick={() => {
-	                              if (hasEvaluationSearchValue) return
-	                              setIsEvaluationSearchOpen((prev) => !prev)
-	                            }}
-	                          >
-	                            <IconSearch size={18} />
-	                          </button>
-	                        </div>
-	                      </div>
-	                    ) : (
-                        <div className="admin-dashboard-table-tools">
-                          <div
-                            className="admin-dashboard-search-trigger"
-                            onMouseEnter={() => setIsEvaluationHistorySearchOpen(true)}
-                            onMouseLeave={() => {
-                              if (!hasEvaluationHistorySearchValue) setIsEvaluationHistorySearchOpen(false)
+          ) : adminActivePanel === 'messages' ? (
+            <>
+              <section className="admin-client-message">
+                <div className="admin-client-message-shell">
+                  <section className="admin-message-stage-panel">
+                    <div className="admin-message-stage-actions">
+                      <div className="admin-message-tabs" role="tablist" aria-label="Message categories">
+                        {messageTabs.map((tab) => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={messageTab === tab.id}
+                            className={`admin-message-tab ${messageTab === tab.id ? 'active' : ''}`}
+                            onClick={() => {
+                              setMessageTab(tab.id)
+                              const firstThread = messageThreads.find((thread) => thread.category === tab.id)
+                              if (firstThread) setSelectedMessageId(firstThread.id)
+                              setOpenMessageId(null)
                             }}
                           >
-                            <label className={`admin-dashboard-table-search ${isEvaluationHistorySearchVisible ? 'is-open' : ''}`}>
-                              <IconSearch size={18} />
-                              <input
-                                ref={evaluationHistorySearchInputRef}
-                                type="text"
-                                placeholder="Search evaluation history..."
-                                aria-label="Search evaluation history"
-                                value={evaluationHistorySearchQuery}
-                                onChange={(event) => setEvaluationHistorySearchQuery(event.target.value)}
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              className="admin-dashboard-icon-btn"
-                              aria-label="Search evaluation history"
-                              aria-pressed={isEvaluationHistorySearchVisible}
-                              onClick={() => {
-                                if (hasEvaluationHistorySearchValue) return
-                                setIsEvaluationHistorySearchOpen((prev) => !prev)
-                              }}
-                            >
-                              <IconSearch size={18} />
-                            </button>
+                            <span>{tab.label}</span>
+                            {messageCounts[tab.id] > 0 ? (
+                              <span className="admin-message-tab-count">{messageCounts[tab.id]}</span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="admin-message-stage-links">
+                        <div
+                          className="admin-dashboard-search-trigger"
+                          onMouseEnter={() => setIsMessageSearchOpen(true)}
+                          onMouseLeave={() => {
+                            if (!hasMessageSearchValue) setIsMessageSearchOpen(false)
+                          }}
+                        >
+                          <label className={`admin-dashboard-table-search ${isMessageSearchVisible ? 'is-open' : ''}`}>
+                            <IconSearch size={18} />
+                            <input
+                              type="text"
+                              placeholder="Search for messages"
+                              aria-label="Search messages"
+                              value={messageSearchQuery}
+                              onChange={(event) => setMessageSearchQuery(event.target.value)}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="admin-dashboard-icon-btn"
+                            aria-label="Search messages"
+                            aria-pressed={isMessageSearchVisible}
+                            onClick={() => {
+                              if (hasMessageSearchValue) return
+                              setIsMessageSearchOpen((prev) => !prev)
+                            }}
+                          >
+                            <IconSearch size={18} />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          className="admin-message-stage-link simple"
+                          onClick={() => openComposeModal()}
+                        >
+                          + Write New
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="admin-message-thread-list minimal" aria-label="Message inbox">
+                      {isMessagesLoading ? (
+                        <div className="admin-client-message-empty">
+                          Loading messages...
+                        </div>
+                      ) : messagesError ? (
+                        <div className="admin-client-message-empty">
+                          {messagesError}
+                        </div>
+                      ) : visibleMessageThreads.length > 0 ? visibleMessageThreads.map((thread, index) => (
+                        <article
+                          key={thread.id}
+                          className={`admin-message-thread-card minimal ${selectedMessageThread?.id === thread.id || (!selectedMessageThread && index === 0) ? 'active' : ''} ${openMessageActionId === thread.id ? 'menu-open' : ''}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setSelectedMessageId(thread.id)
+                            setOpenMessageId(thread.id)
+                            if (!thread.isRead) {
+                              handleMessageUpdate(thread.id, { isRead: true })
+                            }
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              setSelectedMessageId(thread.id)
+                              setOpenMessageId(thread.id)
+                              if (!thread.isRead) {
+                                handleMessageUpdate(thread.id, { isRead: true })
+                              }
+                            }
+                          }}
+                        >
+                          <div className="admin-message-thread-person">
+                            <span className="admin-message-thread-avatar" aria-hidden="true">{thread.avatar}</span>
+                            <div>
+                              <strong>{thread.name}</strong>
+                              <p>{thread.preview}</p>
+                            </div>
                           </div>
-                          <div className="admin-dashboard-filter-wrap" ref={evaluationHistoryFilterRef}>
-                            <button
-                              type="button"
-                              className="admin-dashboard-icon-btn"
-                              aria-label="Filter evaluation history by year"
-                              aria-expanded={isEvaluationHistoryFilterOpen}
-                              onClick={() => setIsEvaluationHistoryFilterOpen((prev) => !prev)}
-                            >
-                              <IconFilter size={18} />
-                            </button>
-                            {isEvaluationHistoryFilterOpen ? (
-                              <div className="admin-dashboard-filter-menu" role="menu" aria-label="Evaluation history filters">
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className={evaluationHistorySortMode === 'all' ? 'active' : ''}
-                                  onClick={() => {
-                                    setEvaluationHistorySortMode('all')
-                                    setEvaluationHistoryYearFilter('all')
-                                    setIsEvaluationHistoryFilterOpen(false)
-                                  }}
+                          <div className="admin-message-thread-meta">
+                            <span>{thread.time}</span>
+                            <div className="admin-message-row-actions">
+                              <button
+                                type="button"
+                                className="admin-message-row-action-btn"
+                                aria-label={`Message actions for ${thread.name}`}
+                                aria-expanded={openMessageActionId === thread.id}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  setOpenMessageActionId((prev) => (prev === thread.id ? null : thread.id))
+                                }}
+                              >
+                                <span className="admin-dashboard-row-dots" aria-hidden="true">
+                                  <span />
+                                  <span />
+                                  <span />
+                                </span>
+                              </button>
+                              {openMessageActionId === thread.id ? (
+                                <div
+                                  className="admin-message-row-menu"
+                                  role="menu"
+                                  aria-label={`Actions for ${thread.name}`}
+                                  onClick={(event) => event.stopPropagation()}
                                 >
-                                  All
-                                </button>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className={evaluationHistorySortMode === 'az' ? 'active' : ''}
-                                  onClick={() => {
-                                    setEvaluationHistorySortMode('az')
-                                    setEvaluationHistoryYearFilter('all')
-                                    setIsEvaluationHistoryFilterOpen(false)
-                                  }}
-                                >
-                                  A-Z
-                                </button>
-                                {evaluationHistoryYears.map((year) => (
                                   <button
-                                    key={`evaluation-history-year-${year}`}
                                     type="button"
                                     role="menuitem"
-                                    className={evaluationHistoryYearFilter === year ? 'active' : ''}
                                     onClick={() => {
-                                      setEvaluationHistoryYearFilter(year)
-                                      setIsEvaluationHistoryFilterOpen(false)
+                                      handleMessageUpdate(thread.id, { isStarred: !thread.isStarred })
+                                      setOpenMessageActionId(null)
                                     }}
                                   >
-                                    {year}
+                                    {thread.isStarred ? 'Unpin' : 'Pin'}
                                   </button>
-                                ))}
-                              </div>
-                            ) : null}
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => {
+                                      openComposeModal({
+                                        mode: 'reply',
+                                        messageId: thread.id,
+                                        draft: {
+                                          toName: thread.name,
+                                          toEmail: thread.email,
+                                          message: '',
+                                        },
+                                      })
+                                      setOpenMessageActionId(null)
+                                    }}
+                                  >
+                                    Reply
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => {
+                                      handleMessageUpdate(thread.id, { isRead: true })
+                                      setOpenMessageActionId(null)
+                                    }}
+                                  >
+                                    Mark as read
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => {
+                                      handleMessageUpdate(thread.id, { isArchived: messageTab === 'archive' ? false : true })
+                                      setOpenMessageActionId(null)
+                                    }}
+                                  >
+                                    {messageTab === 'archive' ? 'Restore' : 'Archive'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="danger"
+                                    onClick={() => {
+                                      setPendingDeleteMessage({
+                                        id: thread.id,
+                                        name: thread.name,
+                                        email: thread.email,
+                                      })
+                                      setOpenMessageActionId(null)
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
+                        </article>
+                      )) : (
+                        <div className="admin-client-message-empty">
+                          {messageTab === 'archive'
+                            ? 'No archived messages yet.'
+                            : 'No conversations matched your search.'}
                         </div>
                       )}
-	                  </div>
-	                  {evaluationSubtab === 'queue' ? (
-	                    <>
-	                      {evaluationFeedback ? (
-	                        <div className="admin-evaluation-feedback">{evaluationFeedback}</div>
-	                      ) : null}
-	                      <div className="admin-evaluation-list">
-	                        {pagedEvaluationQueue.length > 0 ? pagedEvaluationQueue.map((item) => (
-	                          <article key={item.id} className="admin-evaluation-item">
-	                            <div className="admin-evaluation-item-main">
-	                              <strong>{item.name}</strong>
-	                              <p>Next task: {item.track}</p>
-	                              <small>Pending submissions: {item.pendingCount}</small>
-	                              {item.score ? <small>Latest score: {item.score}/10</small> : null}
-	                            </div>
-	                            <div className="admin-evaluation-item-actions">
-	                              <button
-	                                type="button"
-	                                className="secondary"
-	                                onClick={() => handleOpenEvaluationDetails(item)}
-	                              >
-	                                View Full Details
-	                              </button>
-	                              <button type="button" onClick={() => handleOpenEvaluation(item)}>
-	                                {item.status === 'in-progress' ? 'Continue Evaluation' : 'Start Evaluation'}
-	                              </button>
-	                            </div>
-	                          </article>
-	                        )) : (
-	                          <div className="admin-dashboard-table-empty">
-	                            {normalizedEvaluationSearch
-	                              ? 'No evaluations matched your search.'
-	                              : 'No intern evaluations are queued right now.'}
-	                          </div>
-	                        )}
-	                      </div>
-	                      <div className="admin-dashboard-pagination admin-evaluation-pagination">
-	                        <p className="admin-dashboard-pagination-summary">
-	                          Showing <b>{evaluationTotalResults === 0 ? 0 : evaluationStartIndex + 1}</b> to <b>{evaluationEndIndex}</b> of <b>{evaluationTotalResults}</b> results
-	                        </p>
-	                        <div className="admin-dashboard-pagination-controls admin-evaluation-pagination-controls" aria-label="Evaluation queue pagination">
-	                          <button
-	                            type="button"
-	                            className="admin-dashboard-page-btn admin-evaluation-page-btn arrow"
-	                            aria-label="Previous evaluation page"
-	                            disabled={evaluationActivePage === 1}
-	                            onClick={() => setEvaluationCurrentPage((prev) => Math.max(1, prev - 1))}
-	                          >
-	                            &#8249;
-	                          </button>
-	                          {visibleEvaluationPages.map((page) => (
-	                            <button
-	                              key={`evaluation-page-${page}`}
-	                              type="button"
-	                              className={`admin-dashboard-page-btn admin-evaluation-page-btn ${evaluationActivePage === page ? 'active' : ''}`}
-	                              onClick={() => setEvaluationCurrentPage(page)}
-	                            >
-	                              {page}
-	                            </button>
-	                          ))}
-	                          {visibleEvaluationPages[visibleEvaluationPages.length - 1] < evaluationTotalPages ? (
-	                            <span className="admin-dashboard-page-ellipsis admin-evaluation-page-ellipsis">...</span>
-	                          ) : null}
-	                          <button
-	                            type="button"
-	                            className="admin-dashboard-page-btn admin-evaluation-page-btn arrow"
-	                            aria-label="Next evaluation page"
-	                            disabled={evaluationActivePage === evaluationTotalPages}
-	                            onClick={() => setEvaluationCurrentPage((prev) => Math.min(evaluationTotalPages, prev + 1))}
-	                          >
-	                            &#8250;
-	                          </button>
-	                        </div>
-	                      </div>
-	                    </>
-	                  ) : (
-	                    <>
-	                      <div className="admin-evaluation-list">
-	                        {pagedEvaluationHistory.length > 0 ? pagedEvaluationHistory.map((entry) => (
-	                          <article key={entry.id} className="admin-evaluation-item admin-evaluation-history-item">
-	                            <div className="admin-evaluation-item-main">
-	                              <strong>{entry.name}</strong>
-	                              <p>Task: {entry.task}</p>
-	                              <small>Submitted: {entry.submittedAt}</small>
-	                              {entry.score !== null ? <small>Score: {entry.score}/10</small> : null}
-	                            </div>
-	                            <div className="admin-evaluation-item-actions">
-	                              <span className="admin-evaluation-status completed">completed</span>
-	                              <button
-	                                type="button"
-	                                className="secondary"
-	                                onClick={() => handleOpenEvaluationHistoryDetails(entry)}
-	                              >
-	                                View Full Details
-	                              </button>
-                                <div className="admin-history-action-group" aria-label="Evaluation history actions">
-	                                <button
-	                                  type="button"
-	                                  className="secondary admin-history-action-btn"
-	                                  onClick={() => handleArchiveEvaluationHistory(entry.id)}
-	                                >
-	                                  Archive
-	                                </button>
-	                                <button
-	                                  type="button"
-	                                  className="secondary admin-history-action-btn danger"
-	                                  onClick={() => handleDeleteEvaluationHistory(entry)}
-	                                >
-	                                  Delete
-	                                </button>
-	                              </div>
-	                            </div>
-	                          </article>
-	                        )) : (
-	                          <div className="admin-dashboard-table-empty">
-	                            {normalizedEvaluationHistorySearch || evaluationHistoryYearFilter !== 'all'
-	                              ? 'No evaluation history matched your filters.'
-	                              : 'No completed evaluations yet.'}
-	                          </div>
-	                        )}
-	                      </div>
-	                      <div className="admin-dashboard-pagination admin-evaluation-pagination">
-	                        <p className="admin-dashboard-pagination-summary">
-	                          Showing <b>{evaluationHistoryTotalResults === 0 ? 0 : evaluationHistoryStartIndex + 1}</b> to <b>{evaluationHistoryEndIndex}</b> of <b>{evaluationHistoryTotalResults}</b> results
-	                        </p>
-	                        <div className="admin-dashboard-pagination-controls admin-evaluation-pagination-controls" aria-label="Evaluation history pagination">
-	                          <button
-	                            type="button"
-	                            className="admin-dashboard-page-btn admin-evaluation-page-btn arrow"
-	                            aria-label="Previous evaluation history page"
-	                            disabled={evaluationHistoryActivePage === 1}
-	                            onClick={() => setEvaluationHistoryCurrentPage((prev) => Math.max(1, prev - 1))}
-	                          >
-	                            &#8249;
-	                          </button>
-	                          {visibleEvaluationHistoryPages.map((page) => (
-	                            <button
-	                              key={`evaluation-history-page-${page}`}
-	                              type="button"
-	                              className={`admin-dashboard-page-btn admin-evaluation-page-btn ${evaluationHistoryActivePage === page ? 'active' : ''}`}
-	                              onClick={() => setEvaluationHistoryCurrentPage(page)}
-	                            >
-	                              {page}
-	                            </button>
-	                          ))}
-	                          {visibleEvaluationHistoryPages[visibleEvaluationHistoryPages.length - 1] < evaluationHistoryTotalPages ? (
-	                            <span className="admin-dashboard-page-ellipsis admin-evaluation-page-ellipsis">...</span>
-	                          ) : null}
-	                          <button
-	                            type="button"
-	                            className="admin-dashboard-page-btn admin-evaluation-page-btn arrow"
-	                            aria-label="Next evaluation history page"
-	                            disabled={evaluationHistoryActivePage === evaluationHistoryTotalPages}
-	                            onClick={() => setEvaluationHistoryCurrentPage((prev) => Math.min(evaluationHistoryTotalPages, prev + 1))}
-	                          >
-	                            &#8250;
-	                          </button>
-	                        </div>
-	                      </div>
-	                    </>
-	                  )}
-	                </section>
+                    </div>
 
-                <aside className="admin-dashboard-top-performers admin-evaluation-rubric">
-                  <div className="admin-dashboard-top-performers-head">
-                    <h3>Evaluation Focus</h3>
-                    <small>Current Intern Review Criteria</small>
-                  </div>
-                  <div className="admin-evaluation-rubric-list">
-                    {evaluationRubric.map((item) => (
-                      <article key={item.title} className="admin-evaluation-rubric-item">
-                        <strong>{item.title}</strong>
-                        <p>{item.description}</p>
-                      </article>
-                    ))}
-                  </div>
-                </aside>
+                  </section>
+                </div>
               </section>
             </>
           ) : adminActivePanel === 'user-approval' ? (
@@ -5113,17 +5820,6 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                               >
                                 Employee
                               </button>
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className={approvalRoleFilter === 'intern' ? 'active' : ''}
-                                onClick={() => {
-                                  setApprovalRoleFilter('intern')
-                                  setIsApprovalFilterOpen(false)
-                                }}
-                              >
-                                Intern
-                              </button>
                             </div>
                           </div>
                         </div>
@@ -5233,10 +5929,22 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                   <>
                 <div className="admin-dashboard-table-head admin-manage-table-head">
                   <div>
-                    <h2>User Approval History</h2>
-                    <p>Recently accepted and declined requests</p>
+                    <h2>{showApprovalHistoryArchive ? 'Archived Approvals' : 'User Approval History'}</h2>
+                    <p>{showApprovalHistoryArchive ? 'Stored approvals for later reference' : 'Recently accepted and declined requests'}</p>
                   </div>
                   <div className="admin-dashboard-table-tools">
+                    <button
+                      type="button"
+                      className={`admin-dashboard-archive-toggle ${showApprovalHistoryArchive ? 'is-active' : ''}`}
+                      onClick={() => {
+                        setApprovalHistoryCurrentPage(1)
+                        setShowApprovalHistoryArchive((prev) => !prev)
+                      }}
+                    >
+                      {showApprovalHistoryArchive
+                        ? 'Back to History'
+                        : `View Archive${archivedApprovalHistoryEntries.length ? ` (${archivedApprovalHistoryEntries.length})` : ''}`}
+                    </button>
                     <div
                       className="admin-dashboard-search-trigger"
                       onMouseEnter={() => setIsApprovalHistorySearchOpen(true)}
@@ -5287,7 +5995,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                             onClick={() => {
                               setApprovalHistorySortMode('all')
                               setApprovalHistoryYearFilter('all')
-                              setApprovalHistoryRoleFilter('all')
+                              setApprovalHistoryDecisionFilter('all')
                               setIsApprovalHistoryFilterOpen(false)
                             }}
                           >
@@ -5300,68 +6008,71 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                             onClick={() => {
                               setApprovalHistorySortMode('az')
                               setApprovalHistoryYearFilter('all')
-                              setApprovalHistoryRoleFilter('all')
+                              setApprovalHistoryDecisionFilter('all')
                               setIsApprovalHistoryFilterOpen(false)
                             }}
                           >
                             By A-Z
                           </button>
-                          <div className={`admin-dashboard-filter-item ${approvalHistoryRoleFilter !== 'all' ? 'active' : ''}`}>
+                          <div className={`admin-dashboard-filter-item ${approvalHistoryYearFilter !== 'all' ? 'active' : ''}`}>
                             <button
                               type="button"
                               role="menuitem"
                               className="admin-dashboard-filter-parent"
                               aria-haspopup="menu"
                             >
-                              Role
+                              By Year
                             </button>
-                            <div className="admin-dashboard-filter-submenu" role="menu" aria-label="Filter approval history by role">
+                            <div className="admin-dashboard-filter-submenu" role="menu" aria-label="Filter approval history by year">
                               <button
                                 type="button"
                                 role="menuitem"
-                                className={approvalHistoryRoleFilter === 'all' ? 'active' : ''}
+                                className={approvalHistoryYearFilter === 'all' ? 'active' : ''}
                                 onClick={() => {
-                                  setApprovalHistoryRoleFilter('all')
+                                  setApprovalHistoryYearFilter('all')
                                   setIsApprovalHistoryFilterOpen(false)
                                 }}
                               >
-                                All Roles
+                                All Years
                               </button>
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className={approvalHistoryRoleFilter === 'admin' ? 'active' : ''}
-                                onClick={() => {
-                                  setApprovalHistoryRoleFilter('admin')
-                                  setIsApprovalHistoryFilterOpen(false)
-                                }}
-                              >
-                                Admin
-                              </button>
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className={approvalHistoryRoleFilter === 'employee' ? 'active' : ''}
-                                onClick={() => {
-                                  setApprovalHistoryRoleFilter('employee')
-                                  setIsApprovalHistoryFilterOpen(false)
-                                }}
-                              >
-                                Employee
-                              </button>
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className={approvalHistoryRoleFilter === 'intern' ? 'active' : ''}
-                                onClick={() => {
-                                  setApprovalHistoryRoleFilter('intern')
-                                  setIsApprovalHistoryFilterOpen(false)
-                                }}
-                              >
-                                Intern
-                              </button>
+                              {approvalHistoryYears.map((year) => (
+                                <button
+                                  key={`approval-history-year-${year}`}
+                                  type="button"
+                                  role="menuitem"
+                                  className={approvalHistoryYearFilter === year ? 'active' : ''}
+                                  onClick={() => {
+                                    setApprovalHistoryYearFilter(year)
+                                    setIsApprovalHistoryFilterOpen(false)
+                                  }}
+                                >
+                                  {year}
+                                </button>
+                              ))}
                             </div>
                           </div>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className={approvalHistoryDecisionFilter === 'approved' ? 'active' : ''}
+                            onClick={() => {
+                              setApprovalHistoryDecisionFilter('approved')
+                              setIsApprovalHistoryFilterOpen(false)
+                            }}
+                          >
+                            Approved
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className={approvalHistoryDecisionFilter === 'rejected' ? 'active' : ''}
+                            onClick={() => {
+                              setApprovalHistoryDecisionFilter('rejected')
+                              setIsApprovalHistoryFilterOpen(false)
+                            }}
+                          >
+                            Reject
+                          </button>
                         </div>
                       ) : null}
                     </div>
@@ -5401,7 +6112,11 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           aria-expanded={openApprovalHistoryActionMenuId === entry.id}
                           onClick={() => setOpenApprovalHistoryActionMenuId((prev) => (prev === entry.id ? null : entry.id))}
                         >
-                          <IconDotsVertical size={16} />
+                          <span className="admin-dashboard-row-dots" aria-hidden="true">
+                            <span />
+                            <span />
+                            <span />
+                          </span>
                         </button>
                         {openApprovalHistoryActionMenuId === entry.id ? (
                           <div className="admin-dashboard-filter-menu admin-manage-row-menu" role="menu" aria-label={`Actions for ${entry.name}`}>
@@ -5426,19 +6141,23 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                               type="button"
                               role="menuitem"
                               onClick={() => {
-                                handleArchiveApprovalHistory(entry.id)
+                                if (showApprovalHistoryArchive) {
+                                  handleRestoreApprovalHistory(entry.id)
+                                } else {
+                                  handleArchiveApprovalHistory(entry.id)
+                                }
                                 setOpenApprovalHistoryActionMenuId(null)
                               }}
                             >
                               <IconDeviceFloppy size={16} />
-                              Archive
+                              {showApprovalHistoryArchive ? 'Restore' : 'Archive'}
                             </button>
                             <button
                               type="button"
                               role="menuitem"
                               className="danger"
                               onClick={() => {
-                                handleDeleteApprovalHistory(entry.id)
+                                handleRequestApprovalHistoryDelete(entry)
                                 setOpenApprovalHistoryActionMenuId(null)
                               }}
                             >
@@ -5451,9 +6170,13 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     </article>
                   )) : (
                     <div className="admin-dashboard-table-empty">
-                      {normalizedApprovalHistorySearch || approvalHistoryYearFilter !== 'all'
-                        ? 'No approval history matched your filters.'
-                        : 'No approval history yet.'}
+                      {normalizedApprovalHistorySearch || approvalHistoryYearFilter !== 'all' || approvalHistoryDecisionFilter !== 'all'
+                        ? showApprovalHistoryArchive
+                          ? 'No archived approvals matched your filters.'
+                          : 'No approval history matched your filters.'
+                        : showApprovalHistoryArchive
+                          ? 'No archived approvals yet.'
+                          : 'No approval history yet.'}
                     </div>
                   )}
                 </div>
@@ -5655,13 +6378,13 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                               <button
                                 type="button"
                                 role="menuitem"
-                                className={tableRoleFilter === 'intern' ? 'active' : ''}
+                                className={tableRoleFilter === 'employee' ? 'active' : ''}
                                 onClick={() => {
-                                  setTableRoleFilter('intern')
+                                  setTableRoleFilter('employee')
                                   setIsTableFilterOpen(false)
                                 }}
                               >
-                                Intern
+                                Employee
                               </button>
                             </div>
                           </div>
@@ -8276,6 +8999,40 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
 }
 
 const ContactUsPage = () => {
+  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' })
+  const [contactStatus, setContactStatus] = useState({ type: '', message: '' })
+  const [isContactSubmitting, setIsContactSubmitting] = useState(false)
+  const [showContactPopup, setShowContactPopup] = useState(false)
+  const handleContactSubmit = async (event) => {
+    event.preventDefault()
+    setContactStatus({ type: '', message: '' })
+    setShowContactPopup(false)
+    if (!contactForm.name.trim() || !contactForm.email.trim() || !contactForm.message.trim()) {
+      setContactStatus({ type: 'error', message: 'Please complete all fields before sending.' })
+      return
+    }
+    setIsContactSubmitting(true)
+    const { error } = await supabase
+      .from('contact_messages')
+      .insert({
+        name: contactForm.name.trim(),
+        email: contactForm.email.trim(),
+        message: contactForm.message.trim(),
+        is_read: false,
+        is_archived: false,
+        is_starred: false,
+      })
+    if (error) {
+      console.error('Failed to submit contact message', error)
+      setContactStatus({ type: 'error', message: 'Unable to send your message. Please try again.' })
+    } else {
+      setContactStatus({ type: 'success', message: 'Message sent. We will get back to you soon.' })
+      setContactForm({ name: '', email: '', message: '' })
+      setShowContactPopup(true)
+      window.setTimeout(() => setShowContactPopup(false), 3500)
+    }
+    setIsContactSubmitting(false)
+  }
   return (
     <main className="contact-page">
       <section className="contact-shell">
@@ -8304,22 +9061,58 @@ const ContactUsPage = () => {
               </p>
             </article>
 
-            <form className="contact-form-card" aria-label="Send us a message">
+            <form className="contact-form-card" aria-label="Send us a message" onSubmit={handleContactSubmit}>
               <h2>Send us a message</h2>
 
               <label htmlFor="contact-name">Name</label>
-              <input id="contact-name" type="text" placeholder="Your full name" />
+              <input
+                id="contact-name"
+                type="text"
+                placeholder="Your full name"
+                value={contactForm.name}
+                onChange={(event) => setContactForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
 
               <label htmlFor="contact-email">Email</label>
-              <input id="contact-email" type="email" placeholder="name@company.com" />
+              <input
+                id="contact-email"
+                type="email"
+                placeholder="name@company.com"
+                value={contactForm.email}
+                onChange={(event) => setContactForm((prev) => ({ ...prev, email: event.target.value }))}
+              />
 
               <label htmlFor="contact-message">Message</label>
-              <textarea id="contact-message" placeholder="How can we help you?" />
+              <textarea
+                id="contact-message"
+                placeholder="How can we help you?"
+                value={contactForm.message}
+                onChange={(event) => setContactForm((prev) => ({ ...prev, message: event.target.value }))}
+              />
 
-              <button type="submit">
-                Send Message
+              {contactStatus.message ? (
+                <p className={`contact-form-status ${contactStatus.type}`}>
+                  {contactStatus.message}
+                </p>
+              ) : null}
+
+              <button type="submit" disabled={isContactSubmitting}>
+                {isContactSubmitting ? 'Sending...' : 'Send Message'}
               </button>
             </form>
+            {showContactPopup ? (
+              <div
+                className="contact-success-overlay"
+                role="dialog"
+                aria-live="polite"
+                onClick={() => setShowContactPopup(false)}
+              >
+                <div className="contact-success-modal" onClick={(event) => event.stopPropagation()}>
+                  <h3>Message Sent</h3>
+                  <p>Thank you! We will get back to you soon.</p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

@@ -997,7 +997,7 @@ export default function LiquidEther({
             if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
             Common.renderer.dispose();
           }
-        } catch (e) {
+        } catch {
           void 0;
         }
       }
@@ -1077,14 +1077,14 @@ export default function LiquidEther({
       if (resizeObserverRef.current) {
         try {
           resizeObserverRef.current.disconnect();
-        } catch (e) {
+        } catch {
           void 0;
         }
       }
       if (intersectionObserverRef.current) {
         try {
           intersectionObserverRef.current.disconnect();
-        } catch (e) {
+        } catch {
           void 0;
         }
       }
