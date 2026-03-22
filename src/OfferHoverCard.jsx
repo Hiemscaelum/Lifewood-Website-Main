@@ -11,7 +11,7 @@ const OfferHoverCard = ({ step, title, text, imageSrc, imageAlt }) => {
             <div className="front-overlay" aria-hidden="true" />
             <p className="front-title">
               <span>{step}</span>
-              {title}
+              <span className="front-title-text">{title}</span>
             </p>
           </div>
           <div className="content">
@@ -60,7 +60,9 @@ const StyledWrapper = styled.div`
     margin: 0;
     display: flex;
     align-items: center;
-    gap: 16px;
+    justify-content: space-between;
+    column-gap: 16px;
+    width: 100%;
     position: relative;
     z-index: 2;
     font-size: clamp(28px, 2.3vw, 46px);
@@ -69,6 +71,12 @@ const StyledWrapper = styled.div`
     font-weight: 700;
     color: #f6f7f8;
     transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .card .front-content .front-title-text {
+    flex: 1;
+    margin-left: 16px;
+    text-align: right;
   }
 
   .card .front-content .front-title span {

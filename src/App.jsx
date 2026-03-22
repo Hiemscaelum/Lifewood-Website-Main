@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { LayerGroup, LayersControl, MapContainer, Marker, TileLayer, Tooltip, ZoomControl, useMap } from 'react-leaflet'
-import { IconBrandLinkedin, IconBrandInstagram, IconBrandFacebook, IconBrandYoutube, IconBrandGoogle, IconBrandApple, IconBrandGithub, IconEye, IconEyeOff, IconLayoutDashboard, IconBook2, IconReport, IconChevronRight, IconLogout, IconMenu2, IconX, IconCamera, IconDeviceFloppy, IconSearch, IconBell, IconFilter, IconUsers, IconUserPlus, IconUserCheck, IconUserX, IconUserEdit, IconTrash, IconMessage } from '@tabler/icons-react'
+import { IconBrandLinkedin, IconBrandInstagram, IconBrandFacebook, IconBrandYoutube, IconBrandGoogle, IconBrandApple, IconBrandGithub, IconEye, IconEyeOff, IconLayoutDashboard, IconBook2, IconReport, IconChevronRight, IconLogout, IconMenu2, IconX, IconCamera, IconDeviceFloppy, IconSearch, IconBell, IconFilter, IconUsers, IconUserPlus, IconUserCheck, IconUserX, IconUserEdit, IconTrash, IconMessage, IconCopy } from '@tabler/icons-react'
 import L from 'leaflet'
 import LiquidEther from './LiquidEther'
 import FlowingMenu from './FlowingMenu'
@@ -83,7 +83,169 @@ const getInitialsFromName = (value = '') => {
   return parts.map((part) => part[0]).join('').slice(0, 2).toUpperCase()
 }
 
-const truncateMessage = (value = '', limit = 56) => {
+const md5 = (input = '') => {
+  const rotateLeft = (value, shift) => (value << shift) | (value >>> (32 - shift))
+  const addUnsigned = (x, y) => {
+    const x4 = x & 0x40000000
+    const y4 = y & 0x40000000
+    const x8 = x & 0x80000000
+    const y8 = y & 0x80000000
+    const result = (x & 0x3fffffff) + (y & 0x3fffffff)
+    if (x4 & y4) return result ^ 0x80000000 ^ x8 ^ y8
+    if (x4 | y4) {
+      return result & 0x40000000 ? result ^ 0xc0000000 ^ x8 ^ y8 : result ^ 0x40000000 ^ x8 ^ y8
+    }
+    return result ^ x8 ^ y8
+  }
+  const f = (x, y, z) => (x & y) | (~x & z)
+  const g = (x, y, z) => (x & z) | (y & ~z)
+  const h = (x, y, z) => x ^ y ^ z
+  const i = (x, y, z) => y ^ (x | ~z)
+  const ff = (a, b, c, d, x, s, ac) => addUnsigned(rotateLeft(addUnsigned(addUnsigned(a, f(b, c, d)), addUnsigned(x, ac)), s), b)
+  const gg = (a, b, c, d, x, s, ac) => addUnsigned(rotateLeft(addUnsigned(addUnsigned(a, g(b, c, d)), addUnsigned(x, ac)), s), b)
+  const hh = (a, b, c, d, x, s, ac) => addUnsigned(rotateLeft(addUnsigned(addUnsigned(a, h(b, c, d)), addUnsigned(x, ac)), s), b)
+  const ii = (a, b, c, d, x, s, ac) => addUnsigned(rotateLeft(addUnsigned(addUnsigned(a, i(b, c, d)), addUnsigned(x, ac)), s), b)
+  const convertToWordArray = (value) => {
+    const wordArray = []
+    for (let i = 0; i < value.length * 8; i += 8) {
+      wordArray[i >> 5] |= (value.charCodeAt(i / 8) & 0xff) << (i % 32)
+    }
+    return wordArray
+  }
+  const wordToHex = (value) => {
+    let hex = ''
+    for (let i = 0; i <= 3; i += 1) {
+      const byte = (value >>> (i * 8)) & 255
+      hex += (`0${byte.toString(16)}`).slice(-2)
+    }
+    return hex
+  }
+  const utf8Encode = (value) => unescape(encodeURIComponent(value))
+  const utf8Value = utf8Encode(input)
+  const x = convertToWordArray(utf8Value)
+  const len = utf8Value.length * 8
+  x[len >> 5] |= 0x80 << (len % 32)
+  x[(((len + 64) >>> 9) << 4) + 14] = len
+  let a = 0x67452301
+  let b = 0xefcdab89
+  let c = 0x98badcfe
+  let d = 0x10325476
+  for (let k = 0; k < x.length; k += 16) {
+    const aa = a
+    const bb = b
+    const cc = c
+    const dd = d
+    a = ff(a, b, c, d, x[k + 0], 7, 0xd76aa478)
+    d = ff(d, a, b, c, x[k + 1], 12, 0xe8c7b756)
+    c = ff(c, d, a, b, x[k + 2], 17, 0x242070db)
+    b = ff(b, c, d, a, x[k + 3], 22, 0xc1bdceee)
+    a = ff(a, b, c, d, x[k + 4], 7, 0xf57c0faf)
+    d = ff(d, a, b, c, x[k + 5], 12, 0x4787c62a)
+    c = ff(c, d, a, b, x[k + 6], 17, 0xa8304613)
+    b = ff(b, c, d, a, x[k + 7], 22, 0xfd469501)
+    a = ff(a, b, c, d, x[k + 8], 7, 0x698098d8)
+    d = ff(d, a, b, c, x[k + 9], 12, 0x8b44f7af)
+    c = ff(c, d, a, b, x[k + 10], 17, 0xffff5bb1)
+    b = ff(b, c, d, a, x[k + 11], 22, 0x895cd7be)
+    a = ff(a, b, c, d, x[k + 12], 7, 0x6b901122)
+    d = ff(d, a, b, c, x[k + 13], 12, 0xfd987193)
+    c = ff(c, d, a, b, x[k + 14], 17, 0xa679438e)
+    b = ff(b, c, d, a, x[k + 15], 22, 0x49b40821)
+    a = gg(a, b, c, d, x[k + 1], 5, 0xf61e2562)
+    d = gg(d, a, b, c, x[k + 6], 9, 0xc040b340)
+    c = gg(c, d, a, b, x[k + 11], 14, 0x265e5a51)
+    b = gg(b, c, d, a, x[k + 0], 20, 0xe9b6c7aa)
+    a = gg(a, b, c, d, x[k + 5], 5, 0xd62f105d)
+    d = gg(d, a, b, c, x[k + 10], 9, 0x02441453)
+    c = gg(c, d, a, b, x[k + 15], 14, 0xd8a1e681)
+    b = gg(b, c, d, a, x[k + 4], 20, 0xe7d3fbc8)
+    a = gg(a, b, c, d, x[k + 9], 5, 0x21e1cde6)
+    d = gg(d, a, b, c, x[k + 14], 9, 0xc33707d6)
+    c = gg(c, d, a, b, x[k + 3], 14, 0xf4d50d87)
+    b = gg(b, c, d, a, x[k + 8], 20, 0x455a14ed)
+    a = gg(a, b, c, d, x[k + 13], 5, 0xa9e3e905)
+    d = gg(d, a, b, c, x[k + 2], 9, 0xfcefa3f8)
+    c = gg(c, d, a, b, x[k + 7], 14, 0x676f02d9)
+    b = gg(b, c, d, a, x[k + 12], 20, 0x8d2a4c8a)
+    a = hh(a, b, c, d, x[k + 5], 4, 0xfffa3942)
+    d = hh(d, a, b, c, x[k + 8], 11, 0x8771f681)
+    c = hh(c, d, a, b, x[k + 11], 16, 0x6d9d6122)
+    b = hh(b, c, d, a, x[k + 14], 23, 0xfde5380c)
+    a = hh(a, b, c, d, x[k + 1], 4, 0xa4beea44)
+    d = hh(d, a, b, c, x[k + 4], 11, 0x4bdecfa9)
+    c = hh(c, d, a, b, x[k + 7], 16, 0xf6bb4b60)
+    b = hh(b, c, d, a, x[k + 10], 23, 0xbebfbc70)
+    a = hh(a, b, c, d, x[k + 13], 4, 0x289b7ec6)
+    d = hh(d, a, b, c, x[k + 0], 11, 0xeaa127fa)
+    c = hh(c, d, a, b, x[k + 3], 16, 0xd4ef3085)
+    b = hh(b, c, d, a, x[k + 6], 23, 0x04881d05)
+    a = hh(a, b, c, d, x[k + 9], 4, 0xd9d4d039)
+    d = hh(d, a, b, c, x[k + 12], 11, 0xe6db99e5)
+    c = hh(c, d, a, b, x[k + 15], 16, 0x1fa27cf8)
+    b = hh(b, c, d, a, x[k + 2], 23, 0xc4ac5665)
+    a = ii(a, b, c, d, x[k + 0], 6, 0xf4292244)
+    d = ii(d, a, b, c, x[k + 7], 10, 0x432aff97)
+    c = ii(c, d, a, b, x[k + 14], 15, 0xab9423a7)
+    b = ii(b, c, d, a, x[k + 5], 21, 0xfc93a039)
+    a = ii(a, b, c, d, x[k + 12], 6, 0x655b59c3)
+    d = ii(d, a, b, c, x[k + 3], 10, 0x8f0ccc92)
+    c = ii(c, d, a, b, x[k + 10], 15, 0xffeff47d)
+    b = ii(b, c, d, a, x[k + 1], 21, 0x85845dd1)
+    a = ii(a, b, c, d, x[k + 8], 6, 0x6fa87e4f)
+    d = ii(d, a, b, c, x[k + 15], 10, 0xfe2ce6e0)
+    c = ii(c, d, a, b, x[k + 6], 15, 0xa3014314)
+    b = ii(b, c, d, a, x[k + 13], 21, 0x4e0811a1)
+    a = ii(a, b, c, d, x[k + 4], 6, 0xf7537e82)
+    d = ii(d, a, b, c, x[k + 11], 10, 0xbd3af235)
+    c = ii(c, d, a, b, x[k + 2], 15, 0x2ad7d2bb)
+    b = ii(b, c, d, a, x[k + 9], 21, 0xeb86d391)
+    a = addUnsigned(a, aa)
+    b = addUnsigned(b, bb)
+    c = addUnsigned(c, cc)
+    d = addUnsigned(d, dd)
+  }
+  return wordToHex(a) + wordToHex(b) + wordToHex(c) + wordToHex(d)
+}
+
+const getGravatarUrl = (email = '', size = 96) => {
+  const normalizedEmail = email.trim().toLowerCase()
+  if (!normalizedEmail) return ''
+  const hash = md5(normalizedEmail)
+  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`
+}
+
+function deriveMessageCategory(thread) {
+  if (thread.isArchived) return 'archive'
+  if (thread.isStarred) return 'starred'
+  if (!thread.isRead) return 'unread'
+  return 'old'
+}
+
+function mapContactMessageToThread(row) {
+  const isRead = row.is_read ?? false
+  const isArchived = row.is_archived ?? false
+  const isStarred = row.is_starred ?? false
+  const body = row.message || ''
+  const thread = {
+    id: row.id,
+    name: row.name || 'Client',
+    email: row.email || '—',
+    role: row.role || 'Client',
+    preview: truncateMessage(body || row.subject || ''),
+    time: formatMessageTime(row.created_at),
+    unreadCount: isRead ? 0 : 1,
+    avatar: getInitialsFromName(row.name || ''),
+    avatarUrl: getGravatarUrl(row.email || '', 96),
+    subject: row.subject || 'Website Message',
+    body,
+    isRead,
+    isArchived,
+    isStarred,
+  }
+  return { ...thread, category: deriveMessageCategory(thread) }
+}
+
+function truncateMessage(value = '', limit = 56) {
   if (value.length <= limit) return value
   return `${value.slice(0, limit - 3).trimEnd()}...`
 }
@@ -1539,9 +1701,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
         return []
       }
 
-      const mappedFallback = (fallbackData || []).map(mapUserRowToManageUser)
-      setManageUsers(mappedFallback)
-      return mappedFallback
+      return (fallbackData || []).map(mapUserRowToManageUser)
     }
 
     const mapped = (data || []).map(mapUserRowToManageUser)
@@ -1549,16 +1709,72 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   }, [authSession, mapUserRowToManageUser])
 
   const fetchAdmins = useCallback(async () => {
-    if (!authSession) return []
-    const { data, error } = await supabase
-      .from('admins')
-      .select('id, email, role, created_at, full_name, name')
-    if (error) {
-      console.warn('Failed to load admins', error)
+    return []
+  }, [authSession, mapAdminRowToManageUser])
+
+  const refreshManageUsers = useCallback(async () => {
+    if (!isAuthReady) return []
+    if (!authSession) {
+      setManageUsers([])
       return []
     }
-    return (data || []).map(mapAdminRowToManageUser)
-  }, [authSession, mapAdminRowToManageUser])
+    const [userRows, adminRows] = await Promise.all([fetchUsers(), fetchAdmins()])
+    const sessionUser = authSession?.user
+    const sessionAdminRow = sessionUser
+      ? mapAdminRowToManageUser({
+          id: sessionUser.id,
+          email: sessionUser.email,
+          full_name: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name,
+          created_at: sessionUser.created_at,
+        })
+      : null
+    const combined = sessionAdminRow ? [...userRows, ...adminRows, sessionAdminRow] : [...userRows, ...adminRows]
+    const seen = new Set()
+    const deduped = combined.filter((entry) => {
+      const key = entry.email || entry.id
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    setManageUsers(deduped)
+    return deduped
+  }, [authSession, fetchAdmins, fetchUsers, isAuthReady, mapAdminRowToManageUser])
+
+  const backfillUserPhones = useCallback(async () => {
+    if (!authSession) return
+    if (hasBackfilledPhonesRef.current) return
+    hasBackfilledPhonesRef.current = true
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, phone, phone_number')
+      .is('phone', null)
+      .not('phone_number', 'is', null)
+
+    if (error) {
+      console.error('Failed to load phones for backfill', error)
+      return
+    }
+
+    const updates = (data || [])
+      .filter((row) => row.phone_number)
+      .map((row) => ({
+        id: row.id,
+        phone: row.phone_number,
+      }))
+
+    if (updates.length === 0) return
+
+    const results = await Promise.all(updates.map((row) => supabase
+      .from('users')
+      .update({ phone: row.phone })
+      .eq('id', row.id)))
+    const updateError = results.find((result) => result.error)?.error
+    if (updateError) {
+      console.error('Failed to backfill user phones', updateError)
+      return
+    }
+    await refreshManageUsers()
+  }, [authSession, refreshManageUsers])
 
   const handleOpenUserDetail = async (user) => {
     if (!user) return
@@ -1669,6 +1885,25 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       cvFilename: updatedUser.cvFilename && updatedUser.cvFilename !== '—' ? updatedUser.cvFilename : 'cv.pdf',
     }
   }
+
+  const handleViewCv = async () => {
+    if (!selectedDashboardUser) return
+    const { cvRef } = await _fetchCvForSelectedUser(selectedDashboardUser)
+    if (!cvRef) {
+      window.alert('No CV found for this applicant.')
+      return
+    }
+    const storage = supabase.storage.from('job-applications-cv')
+    const { data: signedData, error: signedError } = await storage.createSignedUrl(cvRef, 60 * 5)
+    if (signedError || !signedData?.signedUrl) {
+      const { data: publicData } = storage.getPublicUrl(cvRef)
+      if (publicData?.publicUrl) {
+        window.open(publicData.publicUrl, '_blank', 'noopener,noreferrer')
+      }
+      return
+    }
+    window.open(signedData.signedUrl, '_blank', 'noopener,noreferrer')
+  }
   const PAGE_SIZE = 5
   const MANAGE_PAGE_SIZE = 3
   const EVALUATION_PAGE_SIZE = 4
@@ -1685,6 +1920,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const [messageTab, setMessageTab] = useState('unread')
   const [messageSearchQuery, setMessageSearchQuery] = useState('')
   const [messageThreads, setMessageThreads] = useState([])
+  const [overallMessagesCount, setOverallMessagesCount] = useState(0)
   const [isMessagesLoading, setIsMessagesLoading] = useState(false)
   const [messagesError, setMessagesError] = useState('')
   const normalizedSearch = tableSearchQuery.trim().toLowerCase()
@@ -1882,6 +2118,11 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const hasApprovalHistorySearchValue = normalizedApprovalHistorySearch.length > 0
   const isApprovalHistorySearchVisible = isApprovalHistorySearchOpen || hasApprovalHistorySearchValue
   const isApprovalHistoryArchived = (entry) => Boolean(entry.archivedAt) || archivedApprovalHistoryIds.has(entry.id)
+  const getApprovalHistoryKey = (entry, index) => (
+    entry.id
+    || entry.applicationId
+    || (entry.email ? `${entry.email}-${entry.decisionDate || 'nodate'}` : `approval-${index}`)
+  )
   const archivedApprovalHistoryEntries = approvalHistory.filter((entry) => isApprovalHistoryArchived(entry))
   const approvalHistorySourceEntries = showApprovalHistoryArchive
     ? archivedApprovalHistoryEntries
@@ -1933,15 +2174,17 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const activeMembersCount = manageUsers.filter((user) => user.status === 'active').length
   const totalUsersCount = manageUsers.length
   const verifiedUsersCount = manageUsers.filter((user) => user.status === 'active').length
-  const inactiveUsersCount = manageUsers.filter((user) => user.status !== 'active').length
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
   const newSignupsCount = manageUsers.filter((user) => {
     if (!user.createdAt) return false
     return Date.now() - new Date(user.createdAt).getTime() <= thirtyDaysMs
   }).length
   const pendingApprovalCount = approvalQueue.length
-  const pendingInternApprovals = approvalQueue.filter((user) => user.requestedRole === 'Intern').length
-  const pendingEmployeeApprovals = approvalQueue.filter((user) => user.requestedRole === 'Employee').length
+  const isInternRequest = (label = '') => label.toLowerCase().includes('intern')
+  const pendingInternApprovals = approvalQueue.filter((user) => (
+    isInternRequest(user.requestedRoleLabel || user.requestedRole || '')
+  )).length
+  const pendingEmployeeApprovals = Math.max(pendingApprovalCount - pendingInternApprovals, 0)
   const internUsers = manageUsers.filter((user) => user.role === 'Intern')
   const internAnalyticsUsers = analyticsUsers.filter((user) => user.role === 'Intern')
   const completedEvaluationCount = Object.values(evaluationRecords).filter((entry) => entry.status === 'completed').length
@@ -2138,8 +2381,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       }
 
       const mappedApprovalHistory = (data || []).map((entry) => {
-        const decidedAt = entry.decided_at ? new Date(entry.decided_at) : null
-        const createdAt = entry.account_created_at ? new Date(entry.account_created_at) : null
+        const fallbackUser = manageUsers.find((user) => user.email === entry.applicant_email)
+        const decidedAtRaw = entry.decided_at || entry.created_at || null
+        const decidedAt = decidedAtRaw ? new Date(decidedAtRaw) : null
+        const createdAtRaw = entry.account_created_at
+          || entry.user_created_at
+          || fallbackUser?.createdAt
+          || null
+        const createdAt = createdAtRaw ? new Date(createdAtRaw) : null
         const yearSource = decidedAt || createdAt
         return {
           id: entry.id,
@@ -2186,7 +2435,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     return () => {
       isMounted = false
     }
-  }, [adminActivePanel, authSession, isAuthReady])
+  }, [adminActivePanel, authSession, isAuthReady, manageUsers])
 
   useEffect(() => {
     if (adminActivePanel !== 'messages') return
@@ -2214,6 +2463,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       }
       const mapped = (data || []).map(mapContactMessageToThread)
       setMessageThreads(mapped)
+      setOverallMessagesCount(mapped.length)
       if (mapped.length > 0) {
         setSelectedMessageId((prev) => (mapped.some((item) => item.id === prev) ? prev : mapped[0].id))
       }
@@ -2237,41 +2487,44 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   }, [adminActivePanel, authSession, isAuthReady])
 
   useEffect(() => {
+    if (adminActivePanel !== 'dashboard') return
+    if (!isAuthReady || !authSession) return
     let isMounted = true
-    const loadUsers = async () => {
-      if (!isAuthReady) return
-      if (!authSession) {
-        if (!isMounted) return
-        setManageUsers([])
+    const loadMessageCount = async () => {
+      const { count, error } = await supabase
+        .from('contact_messages')
+        .select('id', { count: 'exact', head: true })
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load message count', error)
         return
       }
-      const [userRows, adminRows] = await Promise.all([fetchUsers(), fetchAdmins()])
-      const sessionUser = authSession?.user
-      const sessionAdminRow = sessionUser
-        ? mapAdminRowToManageUser({
-            id: sessionUser.id,
-            email: sessionUser.email,
-            full_name: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name,
-            created_at: sessionUser.created_at,
-          })
-        : null
+      setOverallMessagesCount(count ?? 0)
+    }
+    loadMessageCount()
+    return () => {
+      isMounted = false
+    }
+  }, [adminActivePanel, authSession, isAuthReady])
+
+  useEffect(() => {
+    let isMounted = true
+    const loadUsers = async () => {
       if (!isMounted) return
-      const combined = sessionAdminRow ? [...userRows, ...adminRows, sessionAdminRow] : [...userRows, ...adminRows]
-      const seen = new Set()
-      const deduped = combined.filter((entry) => {
-        const key = entry.email || entry.id
-        if (!key || seen.has(key)) return false
-        seen.add(key)
-        return true
-      })
-      setManageUsers(deduped)
+      await refreshManageUsers()
     }
 
     loadUsers()
     return () => {
       isMounted = false
     }
-  }, [authSession, fetchAdmins, fetchUsers, isAuthReady, mapAdminRowToManageUser])
+  }, [refreshManageUsers])
+
+  useEffect(() => {
+    if (adminActivePanel !== 'manage-users') return
+    if (!isAuthReady || !authSession) return
+    backfillUserPhones()
+  }, [adminActivePanel, authSession, backfillUserPhones, isAuthReady])
 
   useEffect(() => {
     if (adminActivePanel === 'messages') {
@@ -2500,25 +2753,27 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setIsAddMemberModalOpen(true)
   }
 
-  const handleEditMember = (member) => {
-    const nameParts = (member.name || '').split(/\s+/).filter(Boolean)
+  const handleEditMember = async (member) => {
+    const refreshed = await refreshManageUsers()
+    const latestMember = refreshed.find((user) => user.id === member.id) || member
+    const nameParts = (latestMember.name || '').split(/\s+/).filter(Boolean)
     const firstName = nameParts[0] || ''
     const lastName = nameParts.slice(1).join(' ')
-    setEditingMemberId(member.id)
+    setEditingMemberId(latestMember.id)
     setOpenMemberActionMenuId(null)
     setAddMemberError('')
     setIsAdminCountryOpen(false)
     setAddMemberForm({
       firstName,
       lastName,
-      gender: member.gender && member.gender !== '—' ? member.gender : '',
-      age: member.age && member.age !== '—' ? String(member.age) : '',
-      phoneCountryCode: member.phoneCountryCode || '+63',
-      phoneNumber: member.contactNumber === '—' ? '' : member.contactNumber,
-      email: member.email,
-      positionApplied: member.positionApplied === '—' ? '' : member.positionApplied,
-      country: member.country === '—' ? '' : member.country,
-      currentAddress: member.currentAddress === '—' ? '' : member.currentAddress,
+      gender: latestMember.gender && latestMember.gender !== '—' ? latestMember.gender : '',
+      age: latestMember.age && latestMember.age !== '—' ? String(latestMember.age) : '',
+      phoneCountryCode: latestMember.phoneCountryCode || '+63',
+      phoneNumber: latestMember.contactNumber === '—' ? '' : latestMember.contactNumber,
+      email: latestMember.email,
+      positionApplied: latestMember.positionApplied === '—' ? '' : latestMember.positionApplied,
+      country: latestMember.country === '—' ? '' : latestMember.country,
+      currentAddress: latestMember.currentAddress === '—' ? '' : latestMember.currentAddress,
       cvFile: null,
     })
     setIsAddMemberModalOpen(true)
@@ -2627,7 +2882,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     if (targetEmail) {
       setManageUsers((prev) => prev.filter((user) => user.email !== targetEmail))
     }
-    await fetchUsers()
+    await refreshManageUsers()
     setMemberDeleteToast({
       id: Date.now(),
       status: 'deleted',
@@ -2662,7 +2917,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       return
     }
 
-    await fetchUsers()
+    await refreshManageUsers()
     setMemberDeleteToast({
       id: Date.now(),
       status: 'restored',
@@ -2701,9 +2956,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       return
     }
 
-    let cvFilename = null
-    let cvUrl = null
-    let cvSize = null
+    const existingMember = editingMemberId
+      ? manageUsers.find((user) => user.id === editingMemberId)
+      : null
+    let cvFilename = existingMember?.cvFilename && existingMember.cvFilename !== '—' ? existingMember.cvFilename : null
+    let cvUrl = existingMember?.cvUrl || null
+    let cvSize = existingMember?.cvSize ?? null
 
     if (addMemberForm.cvFile) {
       const safeName = addMemberForm.cvFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -2744,9 +3002,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     }
 
     let applicationId = null
-    const existingMember = editingMemberId
-      ? manageUsers.find((user) => user.id === editingMemberId)
-      : null
+    
     if (existingMember?.applicationId) {
       applicationId = existingMember.applicationId
     } else if (trimmedEmail) {
@@ -2789,6 +3045,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
         email: trimmedEmail,
         role: roleLabel,
         status: 'active',
+        phone: trimmedPhone || null,
         phone_number: trimmedPhone || null,
         phone_country_code: trimmedCountryCode || null,
         gender: addMemberForm.gender || null,
@@ -2807,7 +3064,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       return
     }
 
-    await fetchUsers()
+    await refreshManageUsers()
     setManageCurrentPage(1)
     handleCloseAddMemberModal()
     setIsAddMemberSuccessOpen(true)
@@ -3040,7 +3297,13 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     handleCloseEvaluation()
   }
 
-  const handleArchiveApprovalHistory = async (entryId) => {
+  const handleArchiveApprovalHistory = async (entry) => {
+    if (!entry) return
+    if (!entry.id && !entry.applicationId && !entry.email) {
+      console.warn('Archive skipped: missing identifiers for approval history entry.')
+      return
+    }
+    const entryId = entry.id
     setArchivedApprovalHistoryIds((prev) => {
       const next = new Set(prev)
       next.add(entryId)
@@ -3050,12 +3313,27 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       entry.id === entryId ? { ...entry, archivedAt: new Date().toISOString() } : entry
     )))
 
-    const { error } = await supabase
+    let { data, error } = await supabase
       .from('approval_history')
       .update({ archived_at: new Date().toISOString() })
       .eq('id', entryId)
+      .select('id')
 
-    if (error) {
+    if ((!data || data.length === 0) && (entry.applicationId || entry.email)) {
+      const fallbackQuery = supabase
+        .from('approval_history')
+        .update({ archived_at: new Date().toISOString() })
+      if (entry.applicationId) {
+        fallbackQuery.eq('application_id', entry.applicationId)
+      } else if (entry.email) {
+        fallbackQuery.eq('applicant_email', entry.email)
+      }
+      const fallback = await fallbackQuery.select('id')
+      data = fallback.data
+      error = fallback.error
+    }
+
+    if (error || !data || data.length === 0) {
       console.error('Failed to archive approval history', error)
       setArchivedApprovalHistoryIds((prev) => {
         if (!prev.has(entryId)) return prev
@@ -3066,10 +3344,19 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       setApprovalHistory((prev) => prev.map((entry) => (
         entry.id === entryId ? { ...entry, archivedAt: null } : entry
       )))
+      return
     }
+    setApprovalHistoryCurrentPage(1)
+    setShowApprovalHistoryArchive(true)
   }
 
-  const handleRestoreApprovalHistory = async (entryId) => {
+  const handleRestoreApprovalHistory = async (entry) => {
+    if (!entry) return
+    if (!entry.id && !entry.applicationId && !entry.email) {
+      console.warn('Restore skipped: missing identifiers for approval history entry.')
+      return
+    }
+    const entryId = entry.id
     setArchivedApprovalHistoryIds((prev) => {
       if (!prev.has(entryId)) return prev
       const next = new Set(prev)
@@ -3080,12 +3367,27 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       entry.id === entryId ? { ...entry, archivedAt: null } : entry
     )))
 
-    const { error } = await supabase
+    let { data, error } = await supabase
       .from('approval_history')
       .update({ archived_at: null })
       .eq('id', entryId)
+      .select('id')
 
-    if (error) {
+    if ((!data || data.length === 0) && (entry.applicationId || entry.email)) {
+      const fallbackQuery = supabase
+        .from('approval_history')
+        .update({ archived_at: null })
+      if (entry.applicationId) {
+        fallbackQuery.eq('application_id', entry.applicationId)
+      } else if (entry.email) {
+        fallbackQuery.eq('applicant_email', entry.email)
+      }
+      const fallback = await fallbackQuery.select('id')
+      data = fallback.data
+      error = fallback.error
+    }
+
+    if (error || !data || data.length === 0) {
       console.error('Failed to restore approval history', error)
       setArchivedApprovalHistoryIds((prev) => {
         const next = new Set(prev)
@@ -3095,7 +3397,10 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       setApprovalHistory((prev) => prev.map((entry) => (
         entry.id === entryId ? { ...entry, archivedAt: new Date().toISOString() } : entry
       )))
+      return
     }
+    setApprovalHistoryCurrentPage(1)
+    setShowApprovalHistoryArchive(false)
   }
 
   const handleDeleteApprovalHistory = async (entryId) => {
@@ -3279,6 +3584,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
           email: historySource.email || email,
           role: roleValue,
           status: 'active',
+          phone: historySource.contactNumber || null,
           phone_number: historySource.contactNumber || null,
           phone_country_code: historySource.phoneCountryCode || null,
           country: historySource.country || null,
@@ -3294,12 +3600,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       if (error) {
         console.error('Failed to insert approved user', error)
       } else {
-        await fetchUsers()
+        await refreshManageUsers()
       }
     }
 
     if (decision === 'decline') {
-      await fetchUsers()
+      await refreshManageUsers()
     }
 
     setManageUsers((prev) => {
@@ -3468,13 +3774,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     ? evaluationDueTimes[activeEvaluationModalTaskIndex % evaluationDueTimes.length]
     : (selectedEvaluationItem?.due || '—')
   const [selectedMessageId, setSelectedMessageId] = useState('')
-  const [openMessageId, setOpenMessageId] = useState(null)
   const [isComposeOpen, setIsComposeOpen] = useState(false)
   const [composeMode, setComposeMode] = useState('new')
   const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false)
   const [openMessageActionId, setOpenMessageActionId] = useState(null)
   const [pendingDeleteMessage, setPendingDeleteMessage] = useState(null)
   const [composeMessageId, setComposeMessageId] = useState(null)
+  const [copiedEmail, setCopiedEmail] = useState('')
+  const hasBackfilledPhonesRef = useRef(false)
   const [composeStatus, setComposeStatus] = useState({ type: '', message: '' })
   const [isComposeSubmitting, setIsComposeSubmitting] = useState(false)
   const [composeDraft, setComposeDraft] = useState({
@@ -3490,34 +3797,6 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     { id: 'starred', label: 'Starred' },
     { id: 'archive', label: 'Archive' },
   ]
-  const deriveMessageCategory = (thread) => {
-    if (thread.isArchived) return 'archive'
-    if (thread.isStarred) return 'starred'
-    if (!thread.isRead) return 'unread'
-    return 'old'
-  }
-  const mapContactMessageToThread = (row) => {
-    const isRead = row.is_read ?? false
-    const isArchived = row.is_archived ?? false
-    const isStarred = row.is_starred ?? false
-    const body = row.message || ''
-    const thread = {
-      id: row.id,
-      name: row.name || 'Client',
-      email: row.email || '—',
-      role: row.role || 'Client',
-      preview: truncateMessage(body || row.subject || ''),
-      time: formatMessageTime(row.created_at),
-      unreadCount: isRead ? 0 : 1,
-      avatar: getInitialsFromName(row.name || ''),
-      subject: row.subject || 'Website Message',
-      body,
-      isRead,
-      isArchived,
-      isStarred,
-    }
-    return { ...thread, category: deriveMessageCategory(thread) }
-  }
   const messageCounts = messageThreads.reduce((acc, thread) => {
     acc[thread.category] = (acc[thread.category] || 0) + 1
     return acc
@@ -3634,7 +3913,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     return matchesTab && matchesSearch
   })
   const selectedMessageThread = visibleMessageThreads.find((thread) => thread.id === selectedMessageId) || visibleMessageThreads[0] || null
-  const openMessageThread = messageThreads.find((thread) => thread.id === openMessageId) || null
+  const canViewSelectedCv = Boolean(
+    selectedDashboardUser?.cvUrl || selectedDashboardUser?.applicationId || selectedDashboardUser?.email
+  )
   const openComposeModal = ({ mode = 'new', draft = {}, messageId = null } = {}) => {
     setComposeMode(mode)
     setComposeMessageId(messageId)
@@ -3652,65 +3933,6 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   return (
     <main className="dashboard-page admin-dashboard-page">
       <AnimatePresence>
-        {openMessageThread ? (
-          <motion.div
-            className="admin-message-modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setOpenMessageId(null)}
-          >
-            <motion.section
-              className="admin-message-modal"
-              initial={{ opacity: 0, y: 18, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="admin-message-modal-close"
-                aria-label="Close message"
-                onClick={() => setOpenMessageId(null)}
-              >
-                <IconX size={18} />
-              </button>
-              <header className="admin-message-modal-header">
-                <p className="admin-message-modal-kicker">Message from</p>
-                <h3>{openMessageThread.name}</h3>
-                <div className="admin-message-modal-meta">
-                  <span>{openMessageThread.email}</span>
-                  <span>{openMessageThread.time}</span>
-                </div>
-              </header>
-              <div className="admin-message-modal-body">
-                <h4>{openMessageThread.subject}</h4>
-                <p className="admin-message-modal-text">{openMessageThread.body}</p>
-              </div>
-              <div className="admin-message-modal-actions">
-                <button
-                  type="button"
-                  className="admin-message-modal-reply"
-                  onClick={() => {
-                    openComposeModal({
-                      mode: 'reply',
-                      messageId: openMessageThread.id,
-                      draft: {
-                        toName: openMessageThread.name,
-                        toEmail: openMessageThread.email,
-                        message: '',
-                      },
-                    })
-                    setOpenMessageId(null)
-                  }}
-                >
-                  Reply
-                </button>
-              </div>
-            </motion.section>
-          </motion.div>
-        ) : null}
         {pendingDeleteMessage ? (
           <motion.div
             className="admin-message-modal-overlay"
@@ -3775,10 +3997,10 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
           >
             <motion.section
               className="admin-message-modal"
-              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              initial={{ opacity: 0, y: 16, scale: 0.99 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              exit={{ opacity: 0, y: 8, scale: 0.99 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24, mass: 0.7 }}
               onClick={(event) => event.stopPropagation()}
             >
               <button
@@ -3871,10 +4093,10 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
           >
             <motion.section
               className="admin-member-modal admin-detail-modal"
-              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              initial={{ opacity: 1, y: 0, scale: 1 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              exit={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0 }}
               onClick={(event) => event.stopPropagation()}
             >
               <button
@@ -4003,6 +4225,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 	                    ) : null}
 	                  </div>
 	                  <div className="admin-detail-actions">
+                      <button
+                        type="button"
+                        className="admin-detail-btn primary"
+                        onClick={handleViewCv}
+                        disabled={!canViewSelectedCv}
+                      >
+                        View CV
+                      </button>
 	                    <button
 	                      type="button"
 	                      className="admin-detail-btn ghost cancel"
@@ -4029,10 +4259,10 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
           >
             <motion.section
               className="admin-member-modal admin-evaluation-modal"
-              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              initial={{ opacity: 0, y: 16, scale: 0.99 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              exit={{ opacity: 0, y: 8, scale: 0.99 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24, mass: 0.7 }}
               onClick={(event) => event.stopPropagation()}
             >
               <button
@@ -5454,7 +5684,6 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                               setMessageTab(tab.id)
                               const firstThread = messageThreads.find((thread) => thread.category === tab.id)
                               if (firstThread) setSelectedMessageId(firstThread.id)
-                              setOpenMessageId(null)
                             }}
                           >
                             <span>{tab.label}</span>
@@ -5506,147 +5735,185 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                       </div>
                     </div>
 
-                    <div className="admin-message-thread-list minimal" aria-label="Message inbox">
-                      {isMessagesLoading ? (
-                        <div className="admin-client-message-empty">
-                          Loading messages...
-                        </div>
-                      ) : messagesError ? (
-                        <div className="admin-client-message-empty">
-                          {messagesError}
-                        </div>
-                      ) : visibleMessageThreads.length > 0 ? visibleMessageThreads.map((thread, index) => (
-                        <article
-                          key={thread.id}
-                          className={`admin-message-thread-card minimal ${selectedMessageThread?.id === thread.id || (!selectedMessageThread && index === 0) ? 'active' : ''} ${openMessageActionId === thread.id ? 'menu-open' : ''}`}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => {
-                            setSelectedMessageId(thread.id)
-                            setOpenMessageId(thread.id)
-                            if (!thread.isRead) {
-                              handleMessageUpdate(thread.id, { isRead: true })
-                            }
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
+                    <div className="admin-message-content">
+                      <div className="admin-message-thread-list minimal" aria-label="Message inbox">
+                        {isMessagesLoading ? (
+                          <div className="admin-client-message-empty">
+                            Loading messages...
+                          </div>
+                        ) : messagesError ? (
+                          <div className="admin-client-message-empty">
+                            {messagesError}
+                          </div>
+                        ) : visibleMessageThreads.length > 0 ? visibleMessageThreads.map((thread, index) => (
+                          <article
+                            key={thread.id}
+                            className={`admin-message-thread-card minimal ${selectedMessageThread?.id === thread.id || (!selectedMessageThread && index === 0) ? 'active' : ''} ${openMessageActionId === thread.id ? 'menu-open' : ''}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => {
                               setSelectedMessageId(thread.id)
-                              setOpenMessageId(thread.id)
                               if (!thread.isRead) {
                                 handleMessageUpdate(thread.id, { isRead: true })
                               }
-                            }
-                          }}
-                        >
-                          <div className="admin-message-thread-person">
-                            <span className="admin-message-thread-avatar" aria-hidden="true">{thread.avatar}</span>
-                            <div>
-                              <strong>{thread.name}</strong>
-                              <p>{thread.preview}</p>
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                setSelectedMessageId(thread.id)
+                                if (!thread.isRead) {
+                                  handleMessageUpdate(thread.id, { isRead: true })
+                                }
+                              }
+                            }}
+                          >
+                            <div className="admin-message-thread-person">
+                              <span className="admin-message-thread-avatar" aria-hidden="true">
+                                {thread.avatarUrl ? (
+                                  <img src={thread.avatarUrl} alt="" loading="lazy" />
+                                ) : thread.avatar}
+                              </span>
+                              <div>
+                                <strong>{thread.name}</strong>
+                                <p>{thread.preview}</p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="admin-message-thread-meta">
-                            <span>{thread.time}</span>
-                            <div className="admin-message-row-actions">
-                              <button
-                                type="button"
-                                className="admin-message-row-action-btn"
-                                aria-label={`Message actions for ${thread.name}`}
-                                aria-expanded={openMessageActionId === thread.id}
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  setOpenMessageActionId((prev) => (prev === thread.id ? null : thread.id))
-                                }}
-                              >
-                                <span className="admin-dashboard-row-dots" aria-hidden="true">
-                                  <span />
-                                  <span />
-                                  <span />
-                                </span>
-                              </button>
-                              {openMessageActionId === thread.id ? (
-                                <div
-                                  className="admin-message-row-menu"
-                                  role="menu"
-                                  aria-label={`Actions for ${thread.name}`}
-                                  onClick={(event) => event.stopPropagation()}
+                            <div className="admin-message-thread-meta">
+                              <span>{thread.time}</span>
+                              <div className="admin-message-row-actions">
+                                <button
+                                  type="button"
+                                  className="admin-message-row-action-btn"
+                                  aria-label={`Message actions for ${thread.name}`}
+                                  aria-expanded={openMessageActionId === thread.id}
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    setOpenMessageActionId((prev) => (prev === thread.id ? null : thread.id))
+                                  }}
                                 >
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={() => {
-                                      handleMessageUpdate(thread.id, { isStarred: !thread.isStarred })
-                                      setOpenMessageActionId(null)
-                                    }}
+                                  <span className="admin-dashboard-row-dots" aria-hidden="true">
+                                    <span />
+                                    <span />
+                                    <span />
+                                  </span>
+                                </button>
+                                {openMessageActionId === thread.id ? (
+                                  <div
+                                    className="admin-message-row-menu"
+                                    role="menu"
+                                    aria-label={`Actions for ${thread.name}`}
+                                    onClick={(event) => event.stopPropagation()}
                                   >
-                                    {thread.isStarred ? 'Unpin' : 'Pin'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={() => {
-                                      openComposeModal({
-                                        mode: 'reply',
-                                        messageId: thread.id,
-                                        draft: {
-                                          toName: thread.name,
-                                          toEmail: thread.email,
-                                          message: '',
-                                        },
-                                      })
-                                      setOpenMessageActionId(null)
-                                    }}
-                                  >
-                                    Reply
-                                  </button>
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={() => {
-                                      handleMessageUpdate(thread.id, { isRead: true })
-                                      setOpenMessageActionId(null)
-                                    }}
-                                  >
-                                    Mark as read
-                                  </button>
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={() => {
-                                      handleMessageUpdate(thread.id, { isArchived: messageTab === 'archive' ? false : true })
-                                      setOpenMessageActionId(null)
-                                    }}
-                                  >
-                                    {messageTab === 'archive' ? 'Restore' : 'Archive'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="danger"
-                                    onClick={() => {
-                                      setPendingDeleteMessage({
-                                        id: thread.id,
-                                        name: thread.name,
-                                        email: thread.email,
-                                      })
-                                      setOpenMessageActionId(null)
-                                    }}
-                                  >
-                                    Delete
-                                  </button>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={() => {
+                                        handleMessageUpdate(thread.id, { isStarred: !thread.isStarred })
+                                        setOpenMessageActionId(null)
+                                      }}
+                                    >
+                                      {thread.isStarred ? 'Unpin' : 'Pin'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={() => {
+                                        handleMessageUpdate(thread.id, { isRead: true })
+                                        setOpenMessageActionId(null)
+                                      }}
+                                    >
+                                      Mark as read
+                                    </button>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={() => {
+                                        handleMessageUpdate(thread.id, { isArchived: messageTab === 'archive' ? false : true })
+                                        setOpenMessageActionId(null)
+                                      }}
+                                    >
+                                      {messageTab === 'archive' ? 'Restore' : 'Archive'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      className="danger"
+                                      onClick={() => {
+                                        setPendingDeleteMessage({
+                                          id: thread.id,
+                                          name: thread.name,
+                                          email: thread.email,
+                                        })
+                                        setOpenMessageActionId(null)
+                                      }}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          </article>
+                        )) : (
+                          <div className="admin-client-message-empty">
+                            {messageTab === 'archive'
+                              ? 'No archived messages yet.'
+                              : 'No conversations matched your search.'}
+                          </div>
+                        )}
+                      </div>
+
+                      <aside className="admin-message-detail" aria-live="polite">
+                        {selectedMessageThread ? (
+                          <div className="admin-message-detail-card">
+                            <header className="admin-message-detail-header">
+                              <span className="admin-message-detail-avatar" aria-hidden="true">
+                                {selectedMessageThread.avatarUrl ? (
+                                  <img src={selectedMessageThread.avatarUrl} alt="" loading="lazy" />
+                                ) : selectedMessageThread.avatar}
+                              </span>
+                              <div className="admin-message-detail-text">
+                                <h3>{selectedMessageThread.name}</h3>
+                                <div className="admin-message-detail-meta">
+                                  <span className="admin-message-detail-email">
+                                    {selectedMessageThread.email}
+                                    <button
+                                      type="button"
+                                      className="admin-message-email-copy"
+                                      aria-label="Copy email"
+                                      title="Copy email"
+                                      onClick={async () => {
+                                        if (!selectedMessageThread.email || selectedMessageThread.email === '—') return
+                                        try {
+                                          await navigator.clipboard.writeText(selectedMessageThread.email)
+                                          setCopiedEmail(selectedMessageThread.email)
+                                          setTimeout(() => setCopiedEmail(''), 1400)
+                                        } catch (error) {
+                                          console.error('Failed to copy email', error)
+                                        }
+                                      }}
+                                    >
+                                      <IconCopy size={14} />
+                                    </button>
+                                    {copiedEmail === selectedMessageThread.email ? (
+                                      <span className="admin-message-email-copied">Copied</span>
+                                    ) : null}
+                                  </span>
+                                  <span>{selectedMessageThread.time}</span>
                                 </div>
-                              ) : null}
+                              </div>
+                            </header>
+                            <div className="admin-message-detail-body">
+                              <h4>{selectedMessageThread.subject}</h4>
+                              <p className="admin-message-detail-text">{selectedMessageThread.body}</p>
                             </div>
                           </div>
-                        </article>
-                      )) : (
-                        <div className="admin-client-message-empty">
-                          {messageTab === 'archive'
-                            ? 'No archived messages yet.'
-                            : 'No conversations matched your search.'}
-                        </div>
-                      )}
+                        ) : (
+                          <div className="admin-message-detail-empty">
+                            Select a message to preview.
+                          </div>
+                        )}
+                      </aside>
                     </div>
 
                   </section>
@@ -5863,6 +6130,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           className="admin-approval-action approve"
                           onClick={() => handleRequestApprovalAction(member.email, 'approve')}
                           aria-label="Approve application"
+                          title="Approve"
                         >
                           <IconUserCheck size={16} />
                         </button>
@@ -5871,6 +6139,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                           className="admin-approval-action decline"
                           onClick={() => handleRequestApprovalAction(member.email, 'decline')}
                           aria-label="Decline application"
+                          title="Reject"
                         >
                           <IconUserX size={16} />
                         </button>
@@ -6089,8 +6358,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 </div>
 
                 <div className="admin-approval-history-list">
-                  {pagedApprovalHistory.length > 0 ? pagedApprovalHistory.map((entry) => (
-                    <article key={entry.id} className="admin-approval-history-item">
+                  {pagedApprovalHistory.length > 0 ? pagedApprovalHistory.map((entry, index) => (
+                    <article key={getApprovalHistoryKey(entry, index)} className="admin-approval-history-item">
                       <div className="admin-approval-history-user">
                         <span>{entry.name.split(' ').map((part) => part.charAt(0)).slice(0, 2).join('').toUpperCase()}</span>
                         <div>
@@ -6142,9 +6411,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                               role="menuitem"
                               onClick={() => {
                                 if (showApprovalHistoryArchive) {
-                                  handleRestoreApprovalHistory(entry.id)
+                                  handleRestoreApprovalHistory(entry)
                                 } else {
-                                  handleArchiveApprovalHistory(entry.id)
+                                  handleArchiveApprovalHistory(entry)
                                 }
                                 setOpenApprovalHistoryActionMenuId(null)
                               }}
@@ -6259,12 +6528,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 <article className="admin-dashboard-stat-card">
                   <div className="admin-dashboard-stat-head">
                     <span className="admin-dashboard-stat-icon">
-                      <IconUserX size={18} />
+                      <IconMessage size={18} />
                     </span>
                     <b className="negative">-2.1%</b>
                   </div>
-                  <p>Inactive Accounts</p>
-                  <h3>{inactiveUsersCount.toLocaleString()}</h3>
+                  <p>Overall Messages</p>
+                  <h3>{overallMessagesCount.toLocaleString()}</h3>
                 </article>
               </section>
 
