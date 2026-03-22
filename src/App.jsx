@@ -8192,7 +8192,7 @@ const OfficesPage = () => {
     { city: 'Bangkok', region: 'asia', lat: 13.7563, lng: 100.5018 },
     { city: 'Kuala Lumpur', region: 'asia', lat: 3.139, lng: 101.6869 },
     { city: 'Singapore', region: 'asia', lat: 1.3521, lng: 103.8198 },
-    { city: 'Manila', region: 'asia', lat: 14.5995, lng: 120.9842 },
+    { city: 'Cebu', region: 'asia', lat: 10.3157, lng: 123.8854 },
     { city: 'Tokyo', region: 'asia', lat: 35.6762, lng: 139.6503 },
     { city: 'Seoul', region: 'asia', lat: 37.5665, lng: 126.978 },
     { city: 'Sydney', region: 'oceania', lat: -33.8688, lng: 151.2093 },
@@ -8277,19 +8277,7 @@ const OfficesPage = () => {
                   className="offices-map-leaflet"
                 >
                   <LayersControl position="topright">
-                    <LayersControl.BaseLayer checked name="🗺️ Map View">
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
-                    </LayersControl.BaseLayer>
-                    <LayersControl.BaseLayer name="🛰️ Satellite View">
-                      <TileLayer
-                        attribution="Tiles &copy; Esri"
-                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                      />
-                    </LayersControl.BaseLayer>
-                    <LayersControl.BaseLayer name="🌐 Hybrid View">
+                    <LayersControl.BaseLayer checked name="🌐 Hybrid View">
                       <LayerGroup>
                         <TileLayer
                           attribution="Tiles &copy; Esri"
@@ -8300,6 +8288,18 @@ const OfficesPage = () => {
                           url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
                         />
                       </LayerGroup>
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="🗺️ Map View">
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="🛰️ Satellite View">
+                      <TileLayer
+                        attribution="Tiles &copy; Esri"
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                      />
                     </LayersControl.BaseLayer>
                     <LayersControl.BaseLayer name="⚪ Light Gray View">
                       <TileLayer
@@ -8384,6 +8384,33 @@ const PhilImpactPage = () => {
     return null
   }
 
+  const ForceHybridBaseLayer = ({ hybridRef, mapRef, satelliteRef, lightRef }) => {
+    const map = useMap()
+
+    useEffect(() => {
+      const applyHybrid = () => {
+        const hybridLayer = hybridRef?.current
+        if (hybridLayer && !map.hasLayer(hybridLayer)) {
+          map.addLayer(hybridLayer)
+        }
+
+        const otherLayers = [mapRef?.current, satelliteRef?.current, lightRef?.current]
+        otherLayers.forEach((layer) => {
+          if (layer && map.hasLayer(layer)) {
+            map.removeLayer(layer)
+          }
+        })
+      }
+
+      map.whenReady(applyHybrid)
+      const timer = setTimeout(applyHybrid, 0)
+
+      return () => clearTimeout(timer)
+    }, [map, hybridRef, mapRef, satelliteRef, lightRef])
+
+    return null
+  }
+
   const philImpactMarkerIcon = L.divIcon({
     className: 'offices-map-marker-wrap',
     html: '<span class="offices-map-marker"></span>',
@@ -8420,6 +8447,11 @@ const PhilImpactPage = () => {
     ? philImpactPins
     : philImpactPins.filter((pin) => pin.region === activePhilRegion)
   const philImpactMarqueeItems = philImpactPins.map((pin) => pin.city)
+
+  const philHybridLayerRef = useRef(null)
+  const philMapLayerRef = useRef(null)
+  const philSatelliteLayerRef = useRef(null)
+  const philLightLayerRef = useRef(null)
 
   const impactCards = [
     {
@@ -8512,20 +8544,22 @@ const PhilImpactPage = () => {
                   className="phil-map-leaflet"
                 >
                   <LayersControl position="topright">
-                    <LayersControl.BaseLayer checked name="🗺️ Map View">
+                    <LayersControl.BaseLayer name="🗺️ Map View">
                       <TileLayer
+                        ref={philMapLayerRef}
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       />
                     </LayersControl.BaseLayer>
                     <LayersControl.BaseLayer name="🛰️ Satellite View">
                       <TileLayer
+                        ref={philSatelliteLayerRef}
                         attribution="Tiles &copy; Esri"
                         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                       />
                     </LayersControl.BaseLayer>
-                    <LayersControl.BaseLayer name="🌐 Hybrid View">
-                      <LayerGroup>
+                    <LayersControl.BaseLayer checked name="🌐 Hybrid View">
+                      <LayerGroup ref={philHybridLayerRef}>
                         <TileLayer
                           attribution="Tiles &copy; Esri"
                           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -8538,12 +8572,19 @@ const PhilImpactPage = () => {
                     </LayersControl.BaseLayer>
                     <LayersControl.BaseLayer name="⚪ Light Gray View">
                       <TileLayer
+                        ref={philLightLayerRef}
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; CARTO'
                         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                       />
                     </LayersControl.BaseLayer>
                   </LayersControl>
                   <ZoomControl position="topright" />
+                  <ForceHybridBaseLayer
+                    hybridRef={philHybridLayerRef}
+                    mapRef={philMapLayerRef}
+                    satelliteRef={philSatelliteLayerRef}
+                    lightRef={philLightLayerRef}
+                  />
                   <PhilImpactMapViewport center={selectedPhilRegion.center} zoom={selectedPhilRegion.zoom} />
                   {visiblePhilPins.map((pin) => (
                     <Marker key={pin.city} position={[pin.lat, pin.lng]} icon={philImpactMarkerIcon}>

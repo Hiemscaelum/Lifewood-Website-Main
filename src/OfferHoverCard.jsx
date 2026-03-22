@@ -29,7 +29,7 @@ const StyledWrapper = styled.div`
 
   .card-container {
     width: 100%;
-    min-height: 390px;
+    min-height: 340px;
     height: 100%;
     position: relative;
     border-radius: 36px;
