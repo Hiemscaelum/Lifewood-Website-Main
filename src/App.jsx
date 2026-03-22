@@ -7452,29 +7452,28 @@ const DataServicePage = ({ onNavigate }) => {
     },
   ]
 
-  const heroObjects = [
-    {
-      src: 'https://framerusercontent.com/images/Es0UNVEZFUO6pTmc3NI38eovew.png?width=1600',
-      alt: 'Glossy black 3D object',
-      className: 'object-a',
-    },
-    {
-      src: 'https://framerusercontent.com/images/LFAxsa4CpX7e4qBI72ijOV2sHg.png?width=1600',
-      alt: 'Glossy abstract black 3D object',
-      className: 'object-b',
-    },
-    {
-      src: 'https://framerusercontent.com/images/Tq3lgO9Qy66CFuDaYW99KQ5xoLM.png?width=2040',
-      alt: 'Glossy black 3D cluster object',
-      className: 'object-c',
-    },
-  ]
-
   return (
     <main className="data-service-page">
       <section className="data-service-hero">
         <div className="container">
           <div className="data-service-hero-shell">
+            <div className="data-service-hero-bg" aria-hidden="true">
+              <video
+                className="data-service-hero-video"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                poster="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/B-roll_of_Wikimedia_Foundation_servers_at_CyrusOne_in_Carrollton%2C_Texas_-_photographed_in_2015.webm/800px--B-roll_of_Wikimedia_Foundation_servers_at_CyrusOne_in_Carrollton%2C_Texas_-_photographed_in_2015.webm.jpg"
+              >
+                <source
+                  src="https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4e/B-roll_of_Wikimedia_Foundation_servers_at_CyrusOne_in_Carrollton%2C_Texas_-_photographed_in_2015.webm/B-roll_of_Wikimedia_Foundation_servers_at_CyrusOne_in_Carrollton%2C_Texas_-_photographed_in_2015.webm.360p.vp9.webm?download="
+                  type="video/webm"
+                />
+              </video>
+              <div className="data-service-hero-overlay" />
+            </div>
             <div className="data-service-hero-grid">
               <div className="data-service-copy">
                 <h1>Type A -<br />Data Servicing</h1>
@@ -7492,15 +7491,6 @@ const DataServicePage = ({ onNavigate }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.15 }}
               >
-                {heroObjects.map((item) => (
-                  <img
-                    key={item.className}
-                    src={item.src}
-                    alt={item.alt}
-                    loading="lazy"
-                    className={`data-service-hero-object ${item.className} ${item.className === `object-${heroMode}` ? 'is-primary' : ''}`}
-                  />
-                ))}
               </motion.div>
             </div>
           </div>
@@ -7566,29 +7556,28 @@ const HorizontalLLMDataPage = ({ onNavigate }) => {
     },
   ]
 
-  const heroObjects = [
-    {
-      src: 'https://framerusercontent.com/images/Es0UNVEZFUO6pTmc3NI38eovew.png?width=1600',
-      alt: 'Glossy black 3D object',
-      className: 'object-a',
-    },
-    {
-      src: 'https://framerusercontent.com/images/LFAxsa4CpX7e4qBI72ijOV2sHg.png?width=1600',
-      alt: 'Glossy abstract black 3D object',
-      className: 'object-b',
-    },
-    {
-      src: 'https://framerusercontent.com/images/Tq3lgO9Qy66CFuDaYW99KQ5xoLM.png?width=2040',
-      alt: 'Glossy black 3D cluster object',
-      className: 'object-c',
-    },
-  ]
-
   return (
     <main className="data-service-page">
       <section className="data-service-hero">
         <div className="container">
           <div className="data-service-hero-shell">
+            <div className="data-service-hero-bg" aria-hidden="true">
+              <video
+                className="data-service-hero-video"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                poster="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Infinitely_wide_neural_network.webm/800px--Infinitely_wide_neural_network.webm.jpg"
+              >
+                <source
+                  src="https://upload.wikimedia.org/wikipedia/commons/transcoded/9/92/Infinitely_wide_neural_network.webm/Infinitely_wide_neural_network.webm.360p.vp9.webm?download="
+                  type="video/webm"
+                />
+              </video>
+              <div className="data-service-hero-overlay" />
+            </div>
             <div className="data-service-hero-grid">
               <div className="data-service-copy">
                 <h1>Type B -<br />Horizontal LLM Data</h1>
@@ -7606,15 +7595,6 @@ const HorizontalLLMDataPage = ({ onNavigate }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.15 }}
               >
-                {heroObjects.map((item) => (
-                  <img
-                    key={item.className}
-                    src={item.src}
-                    alt={item.alt}
-                    loading="lazy"
-                    className={`data-service-hero-object ${item.className} ${item.className === `object-${heroMode}` ? 'is-primary' : ''}`}
-                  />
-                ))}
               </motion.div>
             </div>
           </div>
@@ -7680,29 +7660,28 @@ const VerticalLLMDataPage = ({ onNavigate }) => {
     },
   ]
 
-  const heroObjects = [
-    {
-      src: 'https://framerusercontent.com/images/Es0UNVEZFUO6pTmc3NI38eovew.png?width=1600',
-      alt: 'Glossy black 3D object',
-      className: 'object-a',
-    },
-    {
-      src: 'https://framerusercontent.com/images/LFAxsa4CpX7e4qBI72ijOV2sHg.png?width=1600',
-      alt: 'Glossy abstract black 3D object',
-      className: 'object-b',
-    },
-    {
-      src: 'https://framerusercontent.com/images/Tq3lgO9Qy66CFuDaYW99KQ5xoLM.png?width=2040',
-      alt: 'Glossy black 3D cluster object',
-      className: 'object-c',
-    },
-  ]
-
   return (
     <main className="data-service-page">
       <section className="data-service-hero">
         <div className="container">
           <div className="data-service-hero-shell">
+            <div className="data-service-hero-bg" aria-hidden="true">
+              <video
+                className="data-service-hero-video"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                poster="https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Traffic_at_dusk_%28time_lapse%29.webm/800px--Traffic_at_dusk_%28time_lapse%29.webm.jpg"
+              >
+                <source
+                  src="https://upload.wikimedia.org/wikipedia/commons/transcoded/2/28/Traffic_at_dusk_%28time_lapse%29.webm/Traffic_at_dusk_%28time_lapse%29.webm.360p.vp9.webm?download="
+                  type="video/webm"
+                />
+              </video>
+              <div className="data-service-hero-overlay" />
+            </div>
             <div className="data-service-hero-grid">
               <div className="data-service-copy">
                 <h1>Type C -<br />Vertical LLM Data</h1>
@@ -7720,15 +7699,6 @@ const VerticalLLMDataPage = ({ onNavigate }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.15 }}
               >
-                {heroObjects.map((item) => (
-                  <img
-                    key={item.className}
-                    src={item.src}
-                    alt={item.alt}
-                    loading="lazy"
-                    className={`data-service-hero-object ${item.className} ${item.className === `object-${heroMode}` ? 'is-primary' : ''}`}
-                  />
-                ))}
               </motion.div>
             </div>
           </div>
