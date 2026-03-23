@@ -65,6 +65,7 @@ const COUNTRIES = [
 const INTERN_DASHBOARD_PATH = '/dashboard'
 const ADMIN_DASHBOARD_PATH = '/admin-dashboard'
 const CAREERS_URL = 'http://localhost:5173/careers'
+const INTERVIEW_LOCATION = 'Ground Floor i2 Building, Jose Del Mar Street Cebu IT Park, Asia Town, Salinas Drive Apas Lahug, Cebu City, 6000'
 const formatAdminDate = (dateValue) => dateValue.toLocaleDateString('en-US', {
   month: 'short',
   day: '2-digit',
@@ -3841,6 +3842,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   const handleConfirmApprovalAction = async () => {
     if (!pendingApprovalAction) return
     const decisionLabel = pendingApprovalAction.decision === 'approve' ? 'accepted' : 'rejected'
+    const approvalDate = new Date()
+    const interviewDate = new Date(approvalDate)
+    interviewDate.setDate(interviewDate.getDate() + 14)
+    const formattedInterviewDate = interviewDate.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
     const emailTarget = pendingApprovalAction.email && pendingApprovalAction.email !== '—'
       ? pendingApprovalAction.email
       : ''
@@ -3886,6 +3895,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                 position: pendingApprovalAction.positionApplied,
                 applicant_email: pendingApprovalAction.email,
                 submitted_date: pendingApprovalAction.requestedAt,
+                interview_date: formattedInterviewDate,
+                interview_location: INTERVIEW_LOCATION,
                 careers_url: CAREERS_URL,
               },
             }),
