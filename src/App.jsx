@@ -268,6 +268,30 @@ function mapContactMessageToNotification(row) {
   return mapMessageThreadToNotification(thread)
 }
 
+function mapApprovalHistoryEntry(entry, manageUsers = []) {
+  const fallbackUser = manageUsers.find((user) => user.email === entry.applicant_email)
+  const decidedAtRaw = entry.decided_at || entry.created_at || null
+  const decidedAt = decidedAtRaw ? new Date(decidedAtRaw) : null
+  const createdAtRaw = entry.account_created_at
+    || entry.user_created_at
+    || fallbackUser?.createdAt
+    || null
+  const createdAt = createdAtRaw ? new Date(createdAtRaw) : null
+  const yearSource = decidedAt || createdAt
+  return {
+    id: entry.id,
+    applicationId: entry.application_id || null,
+    name: entry.applicant_name || 'Applicant',
+    email: entry.applicant_email || '—',
+    role: entry.role || 'Applicant',
+    decision: entry.decision || 'declined',
+    archivedAt: entry.archived_at || null,
+    accountCreated: createdAt ? formatAdminDate(createdAt) : '—',
+    decisionDate: decidedAt ? formatAdminDate(decidedAt) : '—',
+    year: yearSource ? String(yearSource.getFullYear()) : String(new Date().getFullYear()),
+  }
+}
+
 function truncateMessage(value = '', limit = 56) {
   if (value.length <= limit) return value
   return `${value.slice(0, limit - 3).trimEnd()}...`
@@ -2332,6 +2356,49 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     { title: 'Coaching Notes', description: 'Record strengths, blockers, and next-step guidance for each intern review.' },
   ]
 
+  const hydrateApprovalHistory = async () => {
+    const [historyResult, archiveMetaResult] = await Promise.all([
+      supabase
+        .from('approval_history_with_dates')
+        .select('*')
+        .order('decided_at', { ascending: false }),
+      supabase
+        .from('approval_history')
+        .select('id, application_id, applicant_email, archived_at'),
+    ])
+
+    if (historyResult.error) {
+      console.error('Failed to load approval history', historyResult.error)
+    }
+    if (archiveMetaResult.error) {
+      console.error('Failed to load approval archive metadata', archiveMetaResult.error)
+    }
+
+    const archiveMetaMap = new Map()
+    ;(archiveMetaResult.data || []).forEach((entry) => {
+      const key = entry.application_id || entry.applicant_email || entry.id
+      if (!key) return
+      archiveMetaMap.set(key, entry.archived_at || null)
+    })
+
+    const mappedHistoryRows = (historyResult.data || []).map((entry) => {
+      const mapped = mapApprovalHistoryEntry(entry, manageUsers)
+      const archiveKey = mapped.applicationId || mapped.email || mapped.id
+      const archivedAt = archiveMetaMap.get(archiveKey)
+      return archivedAt && !mapped.archivedAt ? { ...mapped, archivedAt } : mapped
+    })
+    const mappedApprovalHistory = mappedHistoryRows
+
+    setApprovalHistory(mappedApprovalHistory)
+
+    const archivedIdsFromView = mappedApprovalHistory
+      .filter((entry) => entry.archivedAt)
+      .map((entry) => entry.id)
+    setArchivedApprovalHistoryIds(new Set(archivedIdsFromView))
+
+    return { ok: !historyResult.error, data: mappedApprovalHistory }
+  }
+
   useEffect(() => {
     let isMounted = true
     const initAuth = async () => {
@@ -2390,70 +2457,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       setIsApplicationsLoading(false)
     }
 
-    const loadApprovalHistory = async () => {
-      const { data, error } = await supabase
-        .from('approval_history_with_dates')
-        .select('*')
-        .order('decided_at', { ascending: false })
-
-      if (!isMounted) return
-      if (error) {
-        console.error('Failed to load approval history', error)
-        return
-      }
-
-      const mappedApprovalHistory = (data || []).map((entry) => {
-        const fallbackUser = manageUsers.find((user) => user.email === entry.applicant_email)
-        const decidedAtRaw = entry.decided_at || entry.created_at || null
-        const decidedAt = decidedAtRaw ? new Date(decidedAtRaw) : null
-        const createdAtRaw = entry.account_created_at
-          || entry.user_created_at
-          || fallbackUser?.createdAt
-          || null
-        const createdAt = createdAtRaw ? new Date(createdAtRaw) : null
-        const yearSource = decidedAt || createdAt
-        return {
-          id: entry.id,
-          applicationId: entry.application_id || null,
-          name: entry.applicant_name || 'Applicant',
-          email: entry.applicant_email || '—',
-          role: entry.role || 'Applicant',
-          decision: entry.decision || 'declined',
-          archivedAt: entry.archived_at || null,
-          accountCreated: createdAt ? formatAdminDate(createdAt) : '—',
-          decisionDate: decidedAt ? formatAdminDate(decidedAt) : '—',
-          year: yearSource ? String(yearSource.getFullYear()) : String(new Date().getFullYear()),
-        }
-      })
-
-      setApprovalHistory(mappedApprovalHistory)
-      const archivedIdsFromView = mappedApprovalHistory
-        .filter((entry) => entry.archivedAt)
-        .map((entry) => entry.id)
-      setArchivedApprovalHistoryIds(new Set(archivedIdsFromView))
-
-      if (mappedApprovalHistory.length > 0 && archivedIdsFromView.length === 0) {
-        const { data: archivedData, error: archivedError } = await supabase
-          .from('approval_history')
-          .select('id, archived_at')
-          .not('archived_at', 'is', null)
-
-        if (!isMounted) return
-        if (archivedError) {
-          console.warn('Failed to load archived approvals', archivedError)
-          return
-        }
-
-        const archivedIds = new Set((archivedData || []).map((entry) => entry.id))
-        setArchivedApprovalHistoryIds(archivedIds)
-        setApprovalHistory((prev) => prev.map((entry) => (
-          archivedIds.has(entry.id) ? { ...entry, archivedAt: entry.archivedAt || new Date().toISOString() } : entry
-        )))
-      }
-    }
-
     loadApplications()
-    loadApprovalHistory()
+    hydrateApprovalHistory()
     return () => {
       isMounted = false
     }
@@ -3394,28 +3399,36 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       entry.id === entryId ? { ...entry, archivedAt: new Date().toISOString() } : entry
     )))
 
-    let { data, error } = await supabase
+    const archivedAt = new Date().toISOString()
+    let historyData = null
+    let historyError = null
+
+    const { data, error } = await supabase
       .from('approval_history')
-      .update({ archived_at: new Date().toISOString() })
+      .update({ archived_at: archivedAt })
       .eq('id', entryId)
       .select('id')
+    historyData = data
+    historyError = error
 
-    if ((!data || data.length === 0) && (entry.applicationId || entry.email)) {
+    if ((!historyData || historyData.length === 0) && (entry.applicationId || entry.email)) {
       const fallbackQuery = supabase
         .from('approval_history')
-        .update({ archived_at: new Date().toISOString() })
+        .update({ archived_at: archivedAt })
       if (entry.applicationId) {
         fallbackQuery.eq('application_id', entry.applicationId)
       } else if (entry.email) {
         fallbackQuery.eq('applicant_email', entry.email)
       }
       const fallback = await fallbackQuery.select('id')
-      data = fallback.data
-      error = fallback.error
+      historyData = fallback.data
+      historyError = fallback.error
     }
 
-    if (error || !data || data.length === 0) {
-      console.error('Failed to archive approval history', error)
+    const hasHistoryMatch = Boolean(historyData && historyData.length > 0)
+
+    if (historyError || !hasHistoryMatch) {
+      console.error('Failed to archive approval history', historyError)
       setArchivedApprovalHistoryIds((prev) => {
         if (!prev.has(entryId)) return prev
         const next = new Set(prev)
@@ -3427,6 +3440,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       )))
       return
     }
+    await hydrateApprovalHistory()
     setApprovalHistoryCurrentPage(1)
     setShowApprovalHistoryArchive(true)
   }
@@ -3448,13 +3462,18 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       entry.id === entryId ? { ...entry, archivedAt: null } : entry
     )))
 
-    let { data, error } = await supabase
+    let historyData = null
+    let historyError = null
+
+    const { data, error } = await supabase
       .from('approval_history')
       .update({ archived_at: null })
       .eq('id', entryId)
       .select('id')
+    historyData = data
+    historyError = error
 
-    if ((!data || data.length === 0) && (entry.applicationId || entry.email)) {
+    if ((!historyData || historyData.length === 0) && (entry.applicationId || entry.email)) {
       const fallbackQuery = supabase
         .from('approval_history')
         .update({ archived_at: null })
@@ -3464,12 +3483,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
         fallbackQuery.eq('applicant_email', entry.email)
       }
       const fallback = await fallbackQuery.select('id')
-      data = fallback.data
-      error = fallback.error
+      historyData = fallback.data
+      historyError = fallback.error
     }
 
-    if (error || !data || data.length === 0) {
-      console.error('Failed to restore approval history', error)
+    const hasHistoryMatch = Boolean(historyData && historyData.length > 0)
+
+    if (historyError || !hasHistoryMatch) {
+      console.error('Failed to restore approval history', historyError)
       setArchivedApprovalHistoryIds((prev) => {
         const next = new Set(prev)
         next.add(entryId)
@@ -3480,6 +3501,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       )))
       return
     }
+    await hydrateApprovalHistory()
     setApprovalHistoryCurrentPage(1)
     setShowApprovalHistoryArchive(false)
   }
@@ -3606,19 +3628,28 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     const matchedApplicant = approvalQueue.find((user) => user.email === email || user.id === applicationId)
     const matchedUser = manageUsers.find((user) => user.email === email)
     const historySource = matchedApplicant || matchedUser || fallbackApplicant
+    const targetApplicationId = matchedApplicant?.id || applicationId
+    const decisionTimestamp = new Date().toISOString()
+    const decisionDate = new Date(decisionTimestamp)
     if (historySource) {
+      const createdAtSource = historySource.joined || historySource.createdAt || null
+      const createdAt = createdAtSource ? new Date(createdAtSource) : null
       setApprovalHistory((prev) => [
         {
-          id: `history-${Date.now()}`,
+          id: `history-pending-${targetApplicationId || historySource.email || Date.now()}`,
+          applicationId: targetApplicationId || null,
           name: historySource.name,
           email: historySource.email,
           role: historySource.requestedRole || historySource.role,
-          decision: decision === 'approve' ? 'accepted' : 'declined',
-          time: 'Just now',
-          year: String(new Date().getFullYear()),
+          decision: decision === 'approve' ? 'accepted' : 'rejected',
+          archivedAt: null,
+          accountCreated: createdAt ? formatAdminDate(createdAt) : (historySource.onboarding || '—'),
+          decisionDate: formatAdminDate(decisionDate),
+          year: String(decisionDate.getFullYear()),
         },
-        ...prev,
+        ...prev.filter((entry) => entry.applicationId !== targetApplicationId && entry.email !== historySource.email),
       ])
+      setApprovalHistoryCurrentPage(1)
     }
 
     setApplications((prev) => prev.filter((application) => {
@@ -3627,13 +3658,12 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       return application.email !== email
     }))
 
-    const targetApplicationId = matchedApplicant?.id || applicationId
     if (targetApplicationId) {
       const { error } = await supabase
         .from('job_applications')
         .update({
           status: decision === 'approve' ? 'accepted' : 'rejected',
-          decided_at: new Date().toISOString(),
+          decided_at: decisionTimestamp,
         })
         .eq('id', targetApplicationId)
 
@@ -3643,20 +3673,43 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     }
 
     if (historySource) {
-      const { error } = await supabase
-        .from('approval_history')
-        .insert([{
-          application_id: targetApplicationId || null,
-          applicant_name: historySource.name,
-          applicant_email: historySource.email,
-          role: historySource.requestedRole || historySource.role,
-          decision: decision === 'approve' ? 'accepted' : 'rejected',
-          decided_at: new Date().toISOString(),
-          decided_by: 'Admin',
-        }])
+      const historyPayload = {
+        application_id: targetApplicationId || null,
+        applicant_name: historySource.name,
+        applicant_email: historySource.email,
+        role: historySource.requestedRole || historySource.role,
+        decision: decision === 'approve' ? 'accepted' : 'rejected',
+        decided_at: decisionTimestamp,
+        decided_by: 'Admin',
+      }
 
-      if (error) {
-        console.error('Failed to insert approval history', error)
+      let historyError = null
+
+      const { error: insertError } = await supabase
+        .from('approval_history')
+        .insert([historyPayload])
+
+      historyError = insertError
+
+      if (historyError && (targetApplicationId || historySource.email)) {
+        let updateQuery = supabase
+          .from('approval_history')
+          .update(historyPayload)
+
+        if (targetApplicationId) {
+          updateQuery = updateQuery.eq('application_id', targetApplicationId)
+        } else {
+          updateQuery = updateQuery.eq('applicant_email', historySource.email)
+        }
+
+        const { error: updateError } = await updateQuery
+        historyError = updateError
+      }
+
+      if (historyError) {
+        console.error('Failed to persist approval history', historyError)
+      } else {
+        await hydrateApprovalHistory()
       }
     }
 

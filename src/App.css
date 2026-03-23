@@ -13410,7 +13410,8 @@ html {
   color: #156d46;
 }
 
-.admin-approval-history-decision.declined {
+.admin-approval-history-decision.declined,
+.admin-approval-history-decision.rejected {
   color: #c04a54;
 }
 
