@@ -246,6 +246,23 @@ function mapContactMessageToThread(row) {
   return { ...thread, category: deriveMessageCategory(thread) }
 }
 
+function normalizeDeletedMessageRow(row) {
+  return {
+    original_message_id: row.id,
+    name: row.name || null,
+    email: row.email || null,
+    role: row.role || null,
+    subject: row.subject || null,
+    message: row.message || null,
+    is_read: row.is_read ?? false,
+    is_archived: row.is_archived ?? false,
+    is_starred: row.is_starred ?? false,
+    original_created_at: row.created_at || null,
+    deleted_at: new Date().toISOString(),
+    deleted_by: 'Admin',
+  }
+}
+
 function mapMessageThreadToNotification(thread) {
   const title = thread.subject || 'Website Message'
   const preview = thread.preview || ''
@@ -2491,12 +2508,30 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       const { data, error } = await supabase
         .from('contact_messages')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
       if (!isMounted) return
       if (error) {
-        console.error('Failed to load messages', error)
-        setMessagesError('Unable to load messages.')
-        setMessageThreads([])
+        console.warn('Failed to load messages with deleted_at filter, retrying without it.', error)
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('contact_messages')
+          .select('*')
+          .order('created_at', { ascending: false })
+        if (!isMounted) return
+        if (fallbackError) {
+          console.error('Failed to load messages', fallbackError)
+          setMessagesError('Unable to load messages.')
+          setMessageThreads([])
+          setIsMessagesLoading(false)
+          return
+        }
+        const filteredFallbackRows = (fallbackData || []).filter((row) => !row.deleted_at)
+        const mappedFallback = filteredFallbackRows.map(mapContactMessageToThread)
+        setMessageThreads(mappedFallback)
+        setOverallMessagesCount(mappedFallback.length)
+        if (mappedFallback.length > 0) {
+          setSelectedMessageId((prev) => (mappedFallback.some((item) => item.id === prev) ? prev : mappedFallback[0].id))
+        }
         setIsMessagesLoading(false)
         return
       }
@@ -2533,9 +2568,19 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       const { count, error } = await supabase
         .from('contact_messages')
         .select('id', { count: 'exact', head: true })
+        .is('deleted_at', null)
       if (!isMounted) return
       if (error) {
-        console.error('Failed to load message count', error)
+        console.warn('Failed to load message count with deleted_at filter, retrying without it.', error)
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('contact_messages')
+          .select('id, deleted_at')
+        if (!isMounted) return
+        if (fallbackError) {
+          console.error('Failed to load message count', fallbackError)
+          return
+        }
+        setOverallMessagesCount((fallbackData || []).filter((row) => !row.deleted_at).length)
         return
       }
       setOverallMessagesCount(count ?? 0)
@@ -2553,11 +2598,25 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       const { data, error } = await supabase
         .from('contact_messages')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(10)
       if (!isMounted) return
       if (error) {
-        console.error('Failed to load message notifications', error)
+        console.warn('Failed to load message notifications with deleted_at filter, retrying without it.', error)
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('contact_messages')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10)
+        if (!isMounted) return
+        if (fallbackError) {
+          console.error('Failed to load message notifications', fallbackError)
+          return
+        }
+        const filteredFallbackRows = (fallbackData || []).filter((row) => !row.deleted_at)
+        const fallbackNotifications = filteredFallbackRows.map(mapContactMessageToNotification)
+        setNotifications((prev) => mergeMessageNotifications(prev, fallbackNotifications))
         return
       }
       const messageNotifications = (data || []).map(mapContactMessageToNotification)
@@ -4026,12 +4085,33 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     return true
   }
   const handleMessageDelete = async (id) => {
+    const { data: messageRow, error: fetchError } = await supabase
+      .from('contact_messages')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    if (fetchError || !messageRow) {
+      console.error('Failed to load message for delete', fetchError)
+      setMessagesError('Unable to delete message.')
+      return false
+    }
+
+    const archivePayload = normalizeDeletedMessageRow(messageRow)
+    const { error: archiveError } = await supabase
+      .from('deleted_contact_messages')
+      .insert(archivePayload)
+    if (archiveError) {
+      console.error('Failed to archive deleted message', archiveError)
+      setMessagesError('Unable to delete message.')
+      return false
+    }
+
     const { error } = await supabase
       .from('contact_messages')
-      .delete()
+      .update({ deleted_at: archivePayload.deleted_at })
       .eq('id', id)
     if (error) {
-      console.error('Failed to delete message', error)
+      console.error('Failed to soft delete message', error)
       setMessagesError('Unable to delete message.')
       return false
     }
@@ -9508,6 +9588,7 @@ const ContactUsPage = () => {
         is_read: false,
         is_archived: false,
         is_starred: false,
+        deleted_at: null,
       })
     if (error) {
       console.error('Failed to submit contact message', error)
