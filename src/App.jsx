@@ -9,7 +9,7 @@ import CountUp from './CountUp'
 import Plasma from './Plasma'
 import OfferHoverCard from './OfferHoverCard'
 import { supabase } from './supabaseClient'
-import mercProfile from '../merc.jpeg'
+import mercProfile from '../francis.jpeg'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
 
