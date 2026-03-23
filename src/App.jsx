@@ -246,23 +246,6 @@ function mapContactMessageToThread(row) {
   return { ...thread, category: deriveMessageCategory(thread) }
 }
 
-function normalizeDeletedMessageRow(row) {
-  return {
-    original_message_id: row.id,
-    name: row.name || null,
-    email: row.email || null,
-    role: row.role || null,
-    subject: row.subject || null,
-    message: row.message || null,
-    is_read: row.is_read ?? false,
-    is_archived: row.is_archived ?? false,
-    is_starred: row.is_starred ?? false,
-    original_created_at: row.created_at || null,
-    deleted_at: new Date().toISOString(),
-    deleted_by: 'Admin',
-  }
-}
-
 function mapMessageThreadToNotification(thread) {
   const title = thread.subject || 'Website Message'
   const preview = thread.preview || ''
@@ -4085,30 +4068,10 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     return true
   }
   const handleMessageDelete = async (id) => {
-    const { data: messageRow, error: fetchError } = await supabase
-      .from('contact_messages')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle()
-    if (fetchError || !messageRow) {
-      console.error('Failed to load message for delete', fetchError)
-      setMessagesError('Unable to delete message.')
-      return false
-    }
-
-    const archivePayload = normalizeDeletedMessageRow(messageRow)
-    const { error: archiveError } = await supabase
-      .from('deleted_contact_messages')
-      .insert(archivePayload)
-    if (archiveError) {
-      console.error('Failed to archive deleted message', archiveError)
-      setMessagesError('Unable to delete message.')
-      return false
-    }
-
+    const deletedAt = new Date().toISOString()
     const { error } = await supabase
       .from('contact_messages')
-      .update({ deleted_at: archivePayload.deleted_at })
+      .update({ deleted_at: deletedAt })
       .eq('id', id)
     if (error) {
       console.error('Failed to soft delete message', error)
