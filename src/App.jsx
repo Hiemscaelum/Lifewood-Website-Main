@@ -297,6 +297,17 @@ function truncateMessage(value = '', limit = 56) {
   return `${value.slice(0, limit - 3).trimEnd()}...`
 }
 
+const normalizeApprovalAction = (decision = '') => {
+  const normalizedDecision = decision.trim().toLowerCase()
+  if (normalizedDecision === 'approve' || normalizedDecision === 'approved' || normalizedDecision === 'accepted') {
+    return 'approve'
+  }
+  if (normalizedDecision === 'reject' || normalizedDecision === 'rejected' || normalizedDecision === 'decline' || normalizedDecision === 'declined') {
+    return 'reject'
+  }
+  return normalizedDecision
+}
+
 const normalizeContactNumber = (value) => value.replace(/\D/g, '').slice(0, 11)
 
 const getRoleOptionFromLabel = (role = '') => {
@@ -3625,12 +3636,16 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   }
 
   const handleApprovalQueueAction = async (email, decision, applicationId, fallbackApplicant) => {
-    const matchedApplicant = approvalQueue.find((user) => user.email === email || user.id === applicationId)
-    const matchedUser = manageUsers.find((user) => user.email === email)
+    const normalizedDecision = normalizeApprovalAction(decision)
+    const normalizedEmail = (email || '').trim().toLowerCase()
+    const matchedApplicant = approvalQueue.find((user) => user.email?.toLowerCase() === normalizedEmail || user.id === applicationId)
+    const matchedUser = manageUsers.find((user) => user.email?.toLowerCase() === normalizedEmail)
     const historySource = matchedApplicant || matchedUser || fallbackApplicant
     const targetApplicationId = matchedApplicant?.id || applicationId
     const decisionTimestamp = new Date().toISOString()
     const decisionDate = new Date(decisionTimestamp)
+    const persistedEmail = (historySource?.email || email || '').trim().toLowerCase()
+    let approvedUserSyncError = null
     if (historySource) {
       const createdAtSource = historySource.joined || historySource.createdAt || null
       const createdAt = createdAtSource ? new Date(createdAtSource) : null
@@ -3639,9 +3654,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
           id: `history-pending-${targetApplicationId || historySource.email || Date.now()}`,
           applicationId: targetApplicationId || null,
           name: historySource.name,
-          email: historySource.email,
+          email: persistedEmail || historySource.email,
           role: historySource.requestedRole || historySource.role,
-          decision: decision === 'approve' ? 'accepted' : 'rejected',
+          decision: normalizedDecision === 'approve' ? 'accepted' : 'rejected',
           archivedAt: null,
           accountCreated: createdAt ? formatAdminDate(createdAt) : (historySource.onboarding || '—'),
           decisionDate: formatAdminDate(decisionDate),
@@ -3655,14 +3670,14 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setApplications((prev) => prev.filter((application) => {
       if (matchedApplicant?.id) return application.id !== matchedApplicant.id
       if (applicationId) return application.id !== applicationId
-      return application.email !== email
+      return application.email?.toLowerCase() !== normalizedEmail
     }))
 
     if (targetApplicationId) {
       const { error } = await supabase
         .from('job_applications')
         .update({
-          status: decision === 'approve' ? 'accepted' : 'rejected',
+          status: normalizedDecision === 'approve' ? 'accepted' : 'rejected',
           decided_at: decisionTimestamp,
         })
         .eq('id', targetApplicationId)
@@ -3676,9 +3691,9 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       const historyPayload = {
         application_id: targetApplicationId || null,
         applicant_name: historySource.name,
-        applicant_email: historySource.email,
+        applicant_email: persistedEmail || historySource.email,
         role: historySource.requestedRole || historySource.role,
-        decision: decision === 'approve' ? 'accepted' : 'rejected',
+        decision: normalizedDecision === 'approve' ? 'accepted' : 'rejected',
         decided_at: decisionTimestamp,
         decided_by: 'Admin',
       }
@@ -3699,7 +3714,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
         if (targetApplicationId) {
           updateQuery = updateQuery.eq('application_id', targetApplicationId)
         } else {
-          updateQuery = updateQuery.eq('applicant_email', historySource.email)
+          updateQuery = updateQuery.eq('applicant_email', persistedEmail || historySource.email)
         }
 
         const { error: updateError } = await updateQuery
@@ -3713,7 +3728,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       }
     }
 
-    if (decision === 'approve' && historySource) {
+    let didPersistApprovedUser = false
+    if (normalizedDecision === 'approve' && historySource) {
       const roleValue = historySource.requestedRoleLabel
         || historySource.requestedRole
         || historySource.role
@@ -3724,7 +3740,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
         .upsert([{
           application_id: targetApplicationId || null,
           full_name: historySource.name || 'Applicant',
-          email: historySource.email || email,
+          email: persistedEmail || historySource.email || normalizedEmail,
           role: roleValue,
           status: 'active',
           phone: historySource.contactNumber || null,
@@ -3742,24 +3758,26 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
       if (error) {
         console.error('Failed to insert approved user', error)
+        approvedUserSyncError = error
       } else {
+        didPersistApprovedUser = true
         await refreshManageUsers()
       }
     }
 
-    if (decision === 'decline') {
+    if (normalizedDecision === 'reject') {
       await refreshManageUsers()
     }
 
     setManageUsers((prev) => {
-      if (decision === 'decline') {
-        return prev.filter((user) => user.email !== email)
+      if (normalizedDecision === 'reject') {
+        return prev.filter((user) => user.email?.toLowerCase() !== normalizedEmail)
       }
 
-      const existing = prev.find((user) => user.email === email)
+      const existing = prev.find((user) => user.email?.toLowerCase() === normalizedEmail)
       if (existing) {
         return prev.map((user) => (
-          user.email === email
+          user.email?.toLowerCase() === normalizedEmail
             ? {
               ...user,
               status: 'active',
@@ -3773,6 +3791,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       }
 
       if (!historySource) return prev
+      if (!didPersistApprovedUser) return prev
 
       const nameParts = historySource.name?.split(/\s+/).filter(Boolean) || []
       const firstInitial = nameParts[0]?.charAt(0) || ''
@@ -3784,7 +3803,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
         id: `member-${Date.now()}`,
         initials: `${firstInitial}${lastInitial}`.toUpperCase(),
         name: historySource.name || 'Applicant',
-        email: historySource.email || email,
+        email: persistedEmail || historySource.email || normalizedEmail,
         role: roleLabel,
         access: roleLabel,
         status: 'active',
@@ -3801,6 +3820,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
 
       return [newMember, ...prev]
     })
+
+    return { approvedUserSyncError }
   }
 
   const handleRequestApprovalAction = (email, decision, applicationId, meta) => {
@@ -3823,7 +3844,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     const emailTarget = pendingApprovalAction.email && pendingApprovalAction.email !== '—'
       ? pendingApprovalAction.email
       : ''
-    await handleApprovalQueueAction(
+    const actionResult = await handleApprovalQueueAction(
       pendingApprovalAction.email,
       pendingApprovalAction.decision,
       pendingApprovalAction.applicationId,
@@ -3836,8 +3857,10 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setPendingApprovalAction(null)
     setApprovalToast({
       id: Date.now(),
-      decision: decisionLabel,
-      message: `Application ${decisionLabel}.`,
+      decision: actionResult?.approvedUserSyncError ? 'failed' : decisionLabel,
+      message: actionResult?.approvedUserSyncError
+        ? actionResult.approvedUserSyncError.message || 'Application was updated, but the user could not be added to the dashboard list.'
+        : `Application ${decisionLabel}.`,
     })
     if (emailTarget) {
       try {
@@ -4781,7 +4804,13 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                   {approvalToast.decision === 'accepted' ? <IconUserCheck size={16} /> : <IconUserX size={16} />}
                 </span>
                 <div>
-                  <strong>{approvalToast.decision === 'accepted' ? 'Accepted' : 'Rejected'}</strong>
+                  <strong>
+                    {approvalToast.decision === 'accepted'
+                      ? 'Accepted'
+                      : approvalToast.decision === 'failed'
+                        ? 'Action needed'
+                        : 'Rejected'}
+                  </strong>
                   <small>{approvalToast.message}</small>
                 </div>
                 <button
