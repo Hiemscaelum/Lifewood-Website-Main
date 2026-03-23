@@ -9097,10 +9097,12 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
   const [joinUsPending, setJoinUsPending] = useState(false)
   const [isJoinUsSubmitting, setIsJoinUsSubmitting] = useState(false)
   const [joinUsSubmitError, setJoinUsSubmitError] = useState('')
+  const [joinUsFieldErrors, setJoinUsFieldErrors] = useState({})
   const [joinUsCvName, setJoinUsCvName] = useState('')
   const cvInputRef = useRef(null)
   const countryRef = useRef(null)
   const ageRef = useRef(null)
+  const namePattern = /^[A-Za-z]+(?:\s+[A-Za-z]+)*$/
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -9122,6 +9124,15 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
     if (next < min) next = min
     if (next > max) next = max
     ageRef.current.value = String(next)
+  }
+
+  const clearJoinUsFieldError = (fieldName) => {
+    setJoinUsFieldErrors((prev) => {
+      if (!prev[fieldName]) return prev
+      const next = { ...prev }
+      delete next[fieldName]
+      return next
+    })
   }
 
   return (
@@ -9178,12 +9189,68 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
             onSubmit={async (event) => {
               event.preventDefault()
               if (isJoinUsSubmitting) return
-              setIsJoinUsSubmitting(true)
-              setJoinUsSubmitError('')
-
               const form = event.currentTarget
               const formData = new FormData(form)
               const cvFile = formData.get('cv')
+              const firstName = formData.get('firstName')?.toString().trim() || ''
+              const lastName = formData.get('lastName')?.toString().trim() || ''
+              const gender = formData.get('gender')?.toString().trim() || ''
+              const ageValue = formData.get('age')?.toString().trim() || ''
+              const phoneNumber = formData.get('phoneNumber')?.toString().trim() || ''
+              const email = formData.get('email')?.toString().trim() || ''
+              const positionApplied = formData.get('positionApplied')?.toString().trim() || ''
+              const currentAddress = formData.get('currentAddress')?.toString().trim() || ''
+              const parsedAge = Number(ageValue)
+              const validationErrors = {}
+
+              if (!firstName) {
+                validationErrors.firstName = 'First name is required.'
+              } else if (!namePattern.test(firstName)) {
+                validationErrors.firstName = 'First name must contain letters only.'
+              }
+
+              if (!lastName) {
+                validationErrors.lastName = 'Last name is required.'
+              } else if (!namePattern.test(lastName)) {
+                validationErrors.lastName = 'Last name must contain letters only.'
+              }
+
+              if (!gender) validationErrors.gender = 'Please select a gender.'
+
+              if (!ageValue) {
+                validationErrors.age = 'Age is required.'
+              } else if (Number.isNaN(parsedAge) || !Number.isInteger(parsedAge)) {
+                validationErrors.age = 'Please enter a valid age.'
+              } else if (parsedAge < 18) {
+                validationErrors.age = 'Applicants must be 18 or older.'
+              }
+
+              if (!phoneNumber) validationErrors.phoneNumber = 'Phone number is required.'
+              if (!email) validationErrors.email = 'Email address is required.'
+              if (!positionApplied) validationErrors.positionApplied = 'Please select a position.'
+              if (!selectedCountry) validationErrors.country = 'Please select a country.'
+              if (!currentAddress) validationErrors.currentAddress = 'Current address is required.'
+
+              if (!cvFile || typeof cvFile !== 'object' || cvFile.size === 0) {
+                validationErrors.cv = 'Please upload your CV.'
+              } else {
+                if (cvFile.type !== 'application/pdf') {
+                  validationErrors.cv = 'CV must be a PDF file.'
+                } else if (cvFile.size > 10 * 1024 * 1024) {
+                  validationErrors.cv = 'CV must be 10MB or smaller.'
+                }
+              }
+
+              if (Object.keys(validationErrors).length > 0) {
+                setJoinUsFieldErrors(validationErrors)
+                setJoinUsSubmitError('Please correct the highlighted fields before submitting.')
+                return
+              }
+
+              setJoinUsFieldErrors({})
+              setIsJoinUsSubmitting(true)
+              setJoinUsSubmitError('')
+
               let cvUrl = null
               let cvFilename = null
               let cvSize = null
@@ -9210,16 +9277,16 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
               }
 
               const payload = {
-                first_name: formData.get('firstName')?.toString().trim() || null,
-                last_name: formData.get('lastName')?.toString().trim() || null,
-                gender: formData.get('gender')?.toString() || null,
-                age: formData.get('age') ? Number(formData.get('age')) : null,
+                first_name: firstName || null,
+                last_name: lastName || null,
+                gender: gender || null,
+                age: ageValue ? parsedAge : null,
                 phone_country_code: formData.get('phoneCountry')?.toString() || null,
-                phone_number: formData.get('phoneNumber')?.toString().trim() || null,
-                email: formData.get('email')?.toString().trim() || null,
-                position_applied: formData.get('positionApplied')?.toString() || null,
+                phone_number: phoneNumber || null,
+                email: email || null,
+                position_applied: positionApplied || null,
                 country: selectedCountry || null,
-                current_address: formData.get('currentAddress')?.toString().trim() || null,
+                current_address: currentAddress || null,
                 cv_filename: cvFilename,
                 cv_size: cvSize,
                 cv_url: cvUrl,
@@ -9245,6 +9312,7 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
               if (cvInputRef.current) {
                 cvInputRef.current.value = ''
               }
+              setJoinUsFieldErrors({})
               setSelectedCountry('')
               setCountryOpen(false)
             }}
@@ -9257,17 +9325,31 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
             <div className="joinus-grid">
               <label className="joinus-field">
                 <span>First Name</span>
-                <input type="text" name="firstName" placeholder="e.g. Michael" />
+                <input
+                  type="text"
+                  name="firstName"
+                  placeholder="e.g. Michael"
+                  required
+                  onChange={() => clearJoinUsFieldError('firstName')}
+                />
+                {joinUsFieldErrors.firstName ? <small className="joinus-field-error">{joinUsFieldErrors.firstName}</small> : null}
               </label>
               <label className="joinus-field">
                 <span>Last Name</span>
-                <input type="text" name="lastName" placeholder="e.g. Chen" />
+                <input
+                  type="text"
+                  name="lastName"
+                  placeholder="e.g. Chen"
+                  required
+                  onChange={() => clearJoinUsFieldError('lastName')}
+                />
+                {joinUsFieldErrors.lastName ? <small className="joinus-field-error">{joinUsFieldErrors.lastName}</small> : null}
               </label>
 
               <label className="joinus-field joinus-select-field">
                 <span>Gender</span>
                 <div className="joinus-select-wrap">
-                  <select name="gender" defaultValue="">
+                  <select name="gender" defaultValue="" required onChange={() => clearJoinUsFieldError('gender')}>
                     <option value="" disabled>Select gender</option>
                     <option>Male</option>
                     <option>Female</option>
@@ -9279,11 +9361,21 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                     </svg>
                   </span>
                 </div>
+                {joinUsFieldErrors.gender ? <small className="joinus-field-error">{joinUsFieldErrors.gender}</small> : null}
               </label>
               <label className="joinus-field joinus-age-field">
                 <span>Age</span>
                 <div className="joinus-stepper">
-                  <input ref={ageRef} type="number" name="age" placeholder="e.g. 24" min="16" max="80" />
+                  <input
+                    ref={ageRef}
+                    type="number"
+                    name="age"
+                    placeholder="e.g. 24"
+                    min="18"
+                    max="80"
+                    required
+                    onChange={() => clearJoinUsFieldError('age')}
+                  />
                   <div className="joinus-stepper-buttons" aria-hidden="true">
                     <button type="button" className="joinus-stepper-btn" onClick={() => adjustAge(1)}>
                       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
@@ -9297,6 +9389,7 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                     </button>
                   </div>
                 </div>
+                {joinUsFieldErrors.age ? <small className="joinus-field-error">{joinUsFieldErrors.age}</small> : null}
               </label>
 
               <label className="joinus-field joinus-field-phone">
@@ -9308,19 +9401,27 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                     <option>+44 (UK)</option>
                     <option>+61 (Australia)</option>
                   </select>
-                  <input type="tel" name="phoneNumber" placeholder="912345678" />
+                  <input type="tel" name="phoneNumber" placeholder="912345678" required onChange={() => clearJoinUsFieldError('phoneNumber')} />
                 </div>
+                {joinUsFieldErrors.phoneNumber ? <small className="joinus-field-error">{joinUsFieldErrors.phoneNumber}</small> : null}
               </label>
 
               <label className="joinus-field">
                 <span>Email Address</span>
-                <input type="email" name="email" placeholder="michael@example.com" />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="michael@example.com"
+                  required
+                  onChange={() => clearJoinUsFieldError('email')}
+                />
+                {joinUsFieldErrors.email ? <small className="joinus-field-error">{joinUsFieldErrors.email}</small> : null}
               </label>
 
               <label className="joinus-field joinus-select-field">
                 <span>Position Applied</span>
                 <div className="joinus-select-wrap">
-                  <select name="positionApplied" defaultValue="">
+                  <select name="positionApplied" defaultValue="" required onChange={() => clearJoinUsFieldError('positionApplied')}>
                     <option value="" disabled>Select position to add</option>
                     <option>Admin Accounting</option>
                     <option>AI Video Creator/Editor</option>
@@ -9348,6 +9449,7 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                     </svg>
                   </span>
                 </div>
+                {joinUsFieldErrors.positionApplied ? <small className="joinus-field-error">{joinUsFieldErrors.positionApplied}</small> : null}
               </label>
 
               <div className="joinus-field joinus-address-row">
@@ -9377,6 +9479,7 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                             onMouseDown={(event) => {
                               event.preventDefault()
                               setSelectedCountry(country)
+                              clearJoinUsFieldError('country')
                               setCountryOpen(false)
                             }}
                             role="option"
@@ -9388,11 +9491,19 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                       </div>
                     )}
                   </div>
+                  {joinUsFieldErrors.country ? <small className="joinus-field-error">{joinUsFieldErrors.country}</small> : null}
                 </label>
 
                 <label className="joinus-field">
                   <span>Current Address</span>
-                  <input type="text" name="currentAddress" placeholder="e.g. Quezon City, Metro Manila" />
+                  <input
+                    type="text"
+                    name="currentAddress"
+                    placeholder="e.g. Quezon City, Metro Manila"
+                    required
+                    onChange={() => clearJoinUsFieldError('currentAddress')}
+                  />
+                  {joinUsFieldErrors.currentAddress ? <small className="joinus-field-error">{joinUsFieldErrors.currentAddress}</small> : null}
                 </label>
               </div>
 
@@ -9408,6 +9519,7 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                     onChange={(event) => {
                       const file = event.target.files?.[0]
                       setJoinUsCvName(file ? file.name : '')
+                      clearJoinUsFieldError('cv')
                     }}
                   />
                   <span>{joinUsCvName ? 'File selected' : 'Click to upload or drag and drop'}</span>
@@ -9438,6 +9550,7 @@ const JoinUsPage = ({ onNavigate = () => {} }) => {
                     </button>
                   </div>
                 ) : null}
+                {joinUsFieldErrors.cv ? <small className="joinus-field-error joinus-field-error-centered">{joinUsFieldErrors.cv}</small> : null}
               </label>
             </div>
 

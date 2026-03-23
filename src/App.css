@@ -3747,6 +3747,18 @@ img {
   gap: 8px;
 }
 
+.joinus-field-error {
+  color: #ff9d9d;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.joinus-field-error-centered {
+  display: block;
+  margin-top: 10px;
+  text-align: center;
+}
+
 .joinus-field span {
   font-weight: 600;
   letter-spacing: 0.02em;
