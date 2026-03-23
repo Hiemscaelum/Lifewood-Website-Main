@@ -245,6 +245,29 @@ function mapContactMessageToThread(row) {
   return { ...thread, category: deriveMessageCategory(thread) }
 }
 
+function mapMessageThreadToNotification(thread) {
+  const title = thread.subject || 'Website Message'
+  const preview = thread.preview || ''
+  const name = thread.name || 'Client'
+  return {
+    id: `message-${thread.id}`,
+    type: 'messages',
+    section: thread.isArchived ? 'previous' : 'current',
+    status: thread.isRead ? 'read' : 'new',
+    title,
+    description: preview ? `${name}: ${preview}` : name,
+    time: thread.time || '—',
+    read: thread.isRead ?? false,
+    messageId: thread.id,
+    messageCategory: thread.category,
+  }
+}
+
+function mapContactMessageToNotification(row) {
+  const thread = mapContactMessageToThread(row)
+  return mapMessageThreadToNotification(thread)
+}
+
 function truncateMessage(value = '', limit = 56) {
   if (value.length <= limit) return value
   return `${value.slice(0, limit - 3).trimEnd()}...`
@@ -254,9 +277,8 @@ const normalizeContactNumber = (value) => value.replace(/\D/g, '').slice(0, 11)
 
 const getRoleOptionFromLabel = (role = '') => {
   const normalizedRole = role.trim().toLowerCase()
-  if (normalizedRole === 'employee') return 'employee'
-  if (normalizedRole === 'admin') return 'admin'
-  return 'intern'
+  if (!normalizedRole) return 'employee'
+  return normalizedRole.includes('admin') ? 'admin' : 'employee'
 }
 
 const getInitialAddMemberFormState = () => ({
@@ -2508,6 +2530,48 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
   }, [adminActivePanel, authSession, isAuthReady])
 
   useEffect(() => {
+    if (!isAuthReady || !authSession) return
+    let isMounted = true
+    const loadMessageNotifications = async () => {
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10)
+      if (!isMounted) return
+      if (error) {
+        console.error('Failed to load message notifications', error)
+        return
+      }
+      const messageNotifications = (data || []).map(mapContactMessageToNotification)
+      setNotifications((prev) => mergeMessageNotifications(prev, messageNotifications))
+    }
+
+    loadMessageNotifications()
+
+    const channel = supabase
+      .channel('contact-messages-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'contact_messages' },
+        (payload) => {
+          const notification = mapContactMessageToNotification(payload.new)
+          setNotifications((prev) => {
+            if (prev.some((item) => item.id === notification.id)) return prev
+            return [notification, ...prev]
+          })
+          setOverallMessagesCount((prev) => prev + 1)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
+    }
+  }, [authSession, isAuthReady])
+
+  useEffect(() => {
     let isMounted = true
     const loadUsers = async () => {
       if (!isMounted) return
@@ -3078,6 +3142,23 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setNotifications([])
   }
 
+  const mergeMessageNotifications = (prev, incoming) => {
+    const incomingMap = new Map(incoming.map((item) => [item.id, item]))
+    const next = prev.map((item) => {
+      if (item.type !== 'messages') return item
+      const updated = incomingMap.get(item.id)
+      if (!updated) return item
+      return {
+        ...updated,
+        read: item.read || updated.read,
+        section: item.section === 'previous' ? 'previous' : updated.section,
+      }
+    })
+    const existingIds = new Set(prev.map((item) => item.id))
+    const newItems = incoming.filter((item) => !existingIds.has(item.id))
+    return [...newItems, ...next]
+  }
+
   const getEvaluationFormForTask = (record, item, task) => {
     const taskScoreBreakdown = record?.taskScoreBreakdown?.[task]
     return {
@@ -3485,10 +3566,19 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     })
   }
 
-  const handleNotificationClick = (notificationId) => {
+  const handleNotificationClick = (notification) => {
+    const notificationId = typeof notification === 'string' ? notification : notification?.id
+    if (!notificationId) return
     setNotifications((prev) => prev.map((item) => (
       item.id === notificationId ? { ...item, read: true } : item
     )))
+    if (notification?.type === 'messages') {
+      setAdminActivePanel('messages')
+      setMessageTab(notification.messageCategory || 'unread')
+      if (notification.messageId) {
+        setSelectedMessageId(notification.messageId)
+      }
+    }
   }
 
   const _handleApprovalDecision = (event, notificationId, decision) => {
@@ -3748,6 +3838,8 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     ? 'Users'
     : adminActivePanel === 'analytics'
       ? 'Data Analytics'
+    : adminActivePanel === 'messages'
+      ? 'Messages'
     : adminActivePanel === 'evaluation'
       ? 'Evaluation'
     : adminActivePanel === 'user-approval'
@@ -3823,6 +3915,27 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       return false
     }
     updateMessageThread(id, updates)
+    setNotifications((prev) => prev.map((item) => {
+      if (item.id !== `message-${id}`) return item
+      const next = { ...item }
+      const nextThread = {
+        id,
+        isRead: Object.prototype.hasOwnProperty.call(updates, 'isRead') ? updates.isRead : item.read,
+        isArchived: Object.prototype.hasOwnProperty.call(updates, 'isArchived') ? updates.isArchived : item.section === 'previous',
+        isStarred: Object.prototype.hasOwnProperty.call(updates, 'isStarred') ? updates.isStarred : item.messageCategory === 'starred',
+      }
+      if (Object.prototype.hasOwnProperty.call(updates, 'isRead')) {
+        next.read = updates.isRead
+        next.status = updates.isRead ? 'read' : 'new'
+      }
+      if (Object.prototype.hasOwnProperty.call(updates, 'isArchived')) {
+        next.section = updates.isArchived ? 'previous' : 'current'
+      }
+      if (Object.prototype.hasOwnProperty.call(updates, 'isRead') || Object.prototype.hasOwnProperty.call(updates, 'isArchived') || Object.prototype.hasOwnProperty.call(updates, 'isStarred')) {
+        next.messageCategory = deriveMessageCategory(nextThread)
+      }
+      return next
+    }))
     return true
   }
   const handleMessageDelete = async (id) => {
@@ -3836,6 +3949,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
       return false
     }
     setMessageThreads((prev) => prev.filter((thread) => thread.id !== id))
+    setNotifications((prev) => prev.filter((item) => item.id !== `message-${id}`))
     return true
   }
   const handleComposeSubmit = async () => {
@@ -5031,7 +5145,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                               type="button"
                               role="menuitem"
                               className={`admin-dashboard-notif-item ${item.read ? 'is-read' : 'is-unread'}`}
-                              onClick={() => handleNotificationClick(item.id)}
+                              onClick={() => handleNotificationClick(item)}
                             >
                               <span className="admin-dashboard-notif-dot" aria-hidden="true" />
                               <div className="admin-dashboard-notif-item-body">
@@ -5047,7 +5161,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                                       className="admin-dashboard-notif-action accept"
                                       onClick={(event) => {
                                         event.stopPropagation()
-                                        handleNotificationClick(item.id)
+                                        handleNotificationClick(item)
                                         handleRequestApprovalAction(item.email, 'approve', item.applicationId, item)
                                       }}
                                     >
@@ -5058,7 +5172,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                                       className="admin-dashboard-notif-action decline"
                                       onClick={(event) => {
                                         event.stopPropagation()
-                                        handleNotificationClick(item.id)
+                                        handleNotificationClick(item)
                                         handleRequestApprovalAction(item.email, 'decline', item.applicationId, item)
                                       }}
                                     >

@@ -13083,9 +13083,9 @@ html {
 
 .admin-approval-table-grid {
   display: grid;
-  grid-template-columns: minmax(200px, 1.6fr) minmax(120px, 0.95fr) minmax(200px, 1.2fr) minmax(120px, 0.85fr) minmax(100px, 0.7fr) minmax(160px, 1fr);
+  grid-template-columns: minmax(170px, 1.2fr) minmax(110px, 0.7fr) minmax(200px, 1.1fr) minmax(120px, 0.8fr) minmax(100px, 0.7fr) minmax(180px, 0.85fr);
   align-items: center;
-  column-gap: 12px;
+  column-gap: 8px;
 }
 
 .admin-manage-table-columns {
@@ -13264,8 +13264,11 @@ html {
 .admin-approval-row-actions {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-wrap: nowrap;
+  justify-self: start;
+  min-width: 0;
+  margin-left: -14px;
 }
 
 .admin-approval-action {
@@ -13314,6 +13317,14 @@ html {
   background: #f6f7f5;
   color: #1f3a2f;
   border-color: rgba(19, 48, 32, 0.18);
+  min-width: 116px;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .admin-approval-history-card {
@@ -14923,15 +14934,15 @@ html {
 }
 
 .admin-detail-btn.primary {
-  border-color: rgba(23, 91, 163, 0.25);
-  color: #0e3b66;
-  background: #f2f7fd;
-  box-shadow: 0 8px 14px rgba(23, 91, 163, 0.2);
+  border: 1px solid rgba(10, 48, 32, 0.35);
+  color: #f4fbf8;
+  background: linear-gradient(135deg, #0f2f20 0%, #1f5a3b 100%);
+  box-shadow: 0 10px 18px rgba(13, 45, 32, 0.25);
 }
 
 .admin-detail-btn.primary:hover:not(:disabled) {
-  background: #e6f0fb;
-  box-shadow: 0 12px 18px rgba(23, 91, 163, 0.24);
+  background: linear-gradient(135deg, #133a28 0%, #2b6f4c 100%);
+  box-shadow: 0 12px 20px rgba(13, 45, 32, 0.3);
   transform: translateY(-1px);
 }
 
