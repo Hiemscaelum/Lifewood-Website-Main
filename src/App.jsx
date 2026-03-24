@@ -3968,7 +3968,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     : adminActivePanel === 'analytics'
       ? 'Data Analytics'
     : adminActivePanel === 'messages'
-      ? 'Messages'
+      ? 'Inbox'
     : adminActivePanel === 'evaluation'
       ? 'Evaluation'
     : adminActivePanel === 'user-approval'
@@ -5189,7 +5189,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
               onClick={() => setAdminActivePanel('messages')}
             >
               <IconMessage size={18} />
-              <span className="admin-dashboard-nav-label">Messages</span>
+              <span className="admin-dashboard-nav-label">Inbox</span>
             </button>
             <button
               type="button"
@@ -5266,7 +5266,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     <div className="admin-dashboard-notif-tabs">
                       <button type="button" className={notificationTab === 'view-all' ? 'active' : ''} onClick={() => setNotificationTab('view-all')}>View All</button>
                       <button type="button" className={notificationTab === 'approval' ? 'active' : ''} onClick={() => setNotificationTab('approval')}>Approval</button>
-                      <button type="button" className={notificationTab === 'messages' ? 'active' : ''} onClick={() => setNotificationTab('messages')}>Messages</button>
+                      <button type="button" className={notificationTab === 'messages' ? 'active' : ''} onClick={() => setNotificationTab('messages')}>Inbox</button>
                     </div>
                     <div className="admin-dashboard-notif-list">
                       {currentNotifications.length > 0 ? (
@@ -6782,7 +6782,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                     </span>
                     <b className="negative">-2.1%</b>
                   </div>
-                  <p>Overall Messages</p>
+                  <p>Overall Inbox</p>
                   <h3>{overallMessagesCount.toLocaleString()}</h3>
                 </article>
               </section>
