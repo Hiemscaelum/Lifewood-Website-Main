@@ -3197,6 +3197,16 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
     setNotifications((prev) => prev.map((item) => ({ ...item, read: true })))
   }
 
+  const handleToggleNotifications = () => {
+    setIsAdminNotificationOpen((prev) => {
+      const next = !prev
+      if (next) {
+        setNotifications((items) => items.map((item) => ({ ...item, read: true })))
+      }
+      return next
+    })
+  }
+
   const handleClearAllNotifications = () => {
     setNotifications([])
   }
@@ -5247,7 +5257,7 @@ const AdminDashboardPage = ({ onNavigate = () => {} }) => {
                   className="admin-dashboard-icon-btn admin-dashboard-notif-btn"
                   aria-label="Notifications"
                   aria-expanded={isAdminNotificationOpen}
-                  onClick={() => setIsAdminNotificationOpen((prev) => !prev)}
+                  onClick={handleToggleNotifications}
                 >
                   <IconBell size={18} />
                   {unreadNotificationCount > 0 ? (
